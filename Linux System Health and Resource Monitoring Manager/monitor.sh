@@ -4,6 +4,11 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 LOG_FILE="$SCRIPT_DIR/activity.log"
 PROTECTED_NAMES="init systemd kthreadd sshd dbus-daemon login"
 
+if [ ! -d "$SCRIPT_DIR/lib" ]; then
+    echo "Error: the lib folder is missing. Keep monitor.sh and lib/ together."
+    exit 1
+fi
+
 source "$SCRIPT_DIR/lib/utils.sh"
 source "$SCRIPT_DIR/lib/system_info.sh"
 source "$SCRIPT_DIR/lib/resources.sh"
