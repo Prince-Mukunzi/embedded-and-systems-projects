@@ -26,12 +26,54 @@ check_environment() {
     fi
 }
 
+# Prints an error and returns failure when a needed command is not installed
+command_exists() {
+    if ! command -v "$1" > /dev/null 2>&1; then
+        echo "Error: the '$1' command is not available on this system."
+        log_activity "ERROR: missing command $1"
+        return 1
+    fi
+    return 0
+}
+
+# Prints how long the system has been running
+get_uptime() {
+    if command -v uptime > /dev/null 2>&1; then
+        uptime -p
+    else
+        echo "unknown (uptime command not available)"
+    fi
+}
+
+# Prints hostname, operating system, kernel, uptime and the current date
+print_system_info() {
+    local os_name="$(uname -s)"
+
+    if [ -f /etc/os-release ]; then
+        os_name="$(grep '^PRETTY_NAME=' /etc/os-release | cut -d '"' -f 2)"
+    fi
+
+    echo "========== SYSTEM INFORMATION =========="
+    echo "Hostname      : $HOSTNAME"
+    echo "OS            : $os_name"
+    echo "Kernel        : $(uname -r)"
+    echo "Uptime        : $(get_uptime)"
+    echo "Date and time : $(date)"
+}
+
+# Menu option 1
+show_system_info() {
+    print_system_info
+    log_activity "Viewed system information"
+}
+
 # Prints the main menu
 show_menu() {
     echo ""
     echo "========================================"
     echo "   SYSTEM HEALTH AND RESOURCE MONITOR"
     echo "========================================"
+    echo "1. Display system information"
     echo "0. Exit"
     echo "========================================"
 }
@@ -54,6 +96,9 @@ while true; do
     fi
 
     case "$choice" in
+        1)
+            show_system_info
+            ;;
         0)
             break
             ;;
