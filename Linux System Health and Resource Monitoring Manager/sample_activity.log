@@ -1,0 +1,14 @@
+[2026-11-21 14:37:02] Monitor started
+[2026-11-21 14:37:02] Viewed system information
+[2026-11-21 14:37:03] Checked CPU usage: 1% (threshold 70%)
+[2026-11-21 14:37:03] WARNING: memory usage 32% exceeded threshold 20%
+[2026-11-21 14:37:03] Checked memory usage: 32% (threshold 20%)
+[2026-11-21 14:37:03] Checked disk usage (threshold 90%)
+[2026-11-21 14:37:03] Searched process name 'sleep': 1 match(es)
+[2026-11-21 14:37:03] Searched PID 8: found
+[2026-11-21 14:37:03] Terminate refused for PID 1: PID 1 is the init process that keeps the system running.
+[2026-11-21 14:37:03] Terminated process PID 8
+[2026-11-21 14:37:03] Report failed: directory /nope does not exist
+[2026-11-21 14:37:03] Generated health report: /out/health_report_20261121_143703.txt
+[2026-11-21 14:37:03] Invalid menu option: 12
+[2026-11-21 14:37:03] Monitor exited

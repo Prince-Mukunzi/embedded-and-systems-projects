@@ -1,0 +1,31 @@
+SYSTEM HEALTH REPORT
+Generated on: 2026-11-21 14:37:03
+
+========== SYSTEM INFORMATION ==========
+Hostname      : 276da6a621ad
+OS            : Ubuntu 24.04.5 LTS
+Kernel        : 6.12.54-linuxkit
+Uptime        : up 15 minutes
+Date and time : Sat Nov 21 14:37:03 UTC 2026
+
+========== CPU UTILIZATION ==========
+CPU usage: 1%
+
+Top 5 processes by CPU usage:
+  PID USER     COMMAND         %CPU %MEM
+   10 root     bash             0.6  0.0
+    1 root     bash             0.6  0.0
+  103 root     ps               0.0  0.0
+  104 root     head             0.0  0.0
+
+========== MEMORY UTILIZATION ==========
+Total memory     : 7836 MB
+Used memory      : 2524 MB
+Available memory : 5311 MB
+Memory usage     : 32%
+
+========== DISK UTILIZATION ==========
+Filesystem            Size  Used Avail Use% Mounted on
+overlay               453G  9.6G  420G   3% /
+/run/host_mark/Users  461G  349G  113G  76% /src
+/dev/vda1             453G  9.6G  420G   3% /etc/hosts
