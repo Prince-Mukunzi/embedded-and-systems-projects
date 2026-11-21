@@ -126,6 +126,44 @@ monitor_cpu() {
     log_activity "Checked CPU usage: ${cpu_usage}% (threshold ${threshold}%)"
 }
 
+# Prints the memory usage as a whole number percentage
+get_memory_usage() {
+    local total="$(free -m | awk '/^Mem:/ {print $2}')"
+    local used="$(free -m | awk '/^Mem:/ {print $3}')"
+
+    echo $(( used * 100 / total ))
+}
+
+# Prints total, used and available memory with the given usage percentage
+print_memory_info() {
+    echo "========== MEMORY UTILIZATION =========="
+    echo "Total memory     : $(free -m | awk '/^Mem:/ {print $2}') MB"
+    echo "Used memory      : $(free -m | awk '/^Mem:/ {print $3}') MB"
+    echo "Available memory : $(free -m | awk '/^Mem:/ {print $7}') MB"
+    echo "Memory usage     : $1%"
+}
+
+# Menu option 3
+monitor_memory() {
+    local threshold
+    local memory_usage
+
+    command_exists free || return
+    threshold="$(read_threshold "Enter the memory warning threshold (1-100): ")" || return
+
+    memory_usage="$(get_memory_usage)"
+    print_memory_info "$memory_usage"
+    echo ""
+
+    if [ "$memory_usage" -gt "$threshold" ]; then
+        echo "WARNING: memory usage is ${memory_usage}%, above the ${threshold}% threshold."
+        log_activity "WARNING: memory usage ${memory_usage}% exceeded threshold ${threshold}%"
+    else
+        echo "OK: memory usage is ${memory_usage}%, within the ${threshold}% threshold."
+    fi
+    log_activity "Checked memory usage: ${memory_usage}% (threshold ${threshold}%)"
+}
+
 # Prints the main menu
 show_menu() {
     echo ""
@@ -134,6 +172,7 @@ show_menu() {
     echo "========================================"
     echo "1. Display system information"
     echo "2. Monitor CPU utilization"
+    echo "3. Monitor memory utilization"
     echo "0. Exit"
     echo "========================================"
 }
@@ -161,6 +200,9 @@ while true; do
             ;;
         2)
             monitor_cpu
+            ;;
+        3)
+            monitor_memory
             ;;
         0)
             break
