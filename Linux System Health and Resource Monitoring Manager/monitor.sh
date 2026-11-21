@@ -75,8 +75,9 @@ get_uptime() {
 
 # Prints hostname, operating system, kernel, uptime and the current date
 print_system_info() {
-    local os_name="$(uname -s)"
+    local os_name
 
+    os_name="$(uname -s)"
     if [ -f /etc/os-release ]; then
         os_name="$(grep '^PRETTY_NAME=' /etc/os-release | cut -d '"' -f 2)"
     fi
@@ -137,9 +138,11 @@ monitor_cpu() {
 
 # Prints the memory usage as a whole number percentage
 get_memory_usage() {
-    local total="$(free -m | awk '/^Mem:/ {print $2}')"
-    local used="$(free -m | awk '/^Mem:/ {print $3}')"
+    local total
+    local used
 
+    total="$(free -m | awk '/^Mem:/ {print $2}')"
+    used="$(free -m | awk '/^Mem:/ {print $3}')"
     echo $(( used * 100 / total ))
 }
 
@@ -286,9 +289,12 @@ view_processes() {
 # Prints the reason a process must not be killed, or nothing if it is allowed
 protection_reason() {
     local pid="$1"
-    local name="$(ps -p "$pid" -o comm=)"
-    local owner_uid="$(ps -p "$pid" -o uid= | tr -d ' ')"
+    local name
+    local owner_uid
     local protected
+
+    name="$(ps -p "$pid" -o comm=)"
+    owner_uid="$(ps -p "$pid" -o uid= | tr -d ' ')"
 
     if [ "$pid" -eq 1 ]; then
         echo "PID 1 is the init process that keeps the system running."
@@ -424,7 +430,7 @@ clear_activity_log() {
         return
     fi
 
-    > "$LOG_FILE"
+    echo -n "" > "$LOG_FILE"
     echo "The activity log has been cleared."
     log_activity "Activity log cleared"
 }
