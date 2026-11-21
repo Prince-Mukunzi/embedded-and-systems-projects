@@ -36,6 +36,25 @@ command_exists() {
     return 0
 }
 
+# Keeps asking until the user types a whole number from 1 to 100, then prints it
+read_threshold() {
+    local value
+
+    while true; do
+        if ! read -r -p "$1" value; then
+            return 1
+        fi
+
+        if [[ "$value" =~ ^[0-9]+$ ]] && [ "$value" -ge 1 ] && [ "$value" -le 100 ]; then
+            echo "$value"
+            return 0
+        fi
+
+        # Sent to stderr so it is shown to the user and not captured as the threshold
+        echo "Invalid threshold. Enter a whole number from 1 to 100." >&2
+    done
+}
+
 # Prints how long the system has been running
 get_uptime() {
     if command -v uptime > /dev/null 2>&1; then
@@ -67,6 +86,46 @@ show_system_info() {
     log_activity "Viewed system information"
 }
 
+# Prints the CPU usage as a whole number percentage
+get_cpu_usage() {
+    local idle
+
+    # The first sample from top is an average since boot, so the second one is used
+    idle="$(top -bn2 -d 0.5 | grep 'Cpu(s)' | tail -n 1 | sed 's/.*, *\([0-9.]*\) id.*/\1/')"
+    awk -v idle="$idle" 'BEGIN { printf "%.0f", 100 - idle }'
+}
+
+# Prints the given CPU usage and the processes using the most CPU
+print_cpu_info() {
+    echo "========== CPU UTILIZATION =========="
+    echo "CPU usage: $1%"
+    echo ""
+    echo "Top 5 processes by CPU usage:"
+    ps -eo pid,user,comm,%cpu,%mem --sort=-%cpu | head -n 6
+}
+
+# Menu option 2
+monitor_cpu() {
+    local threshold
+    local cpu_usage
+
+    command_exists top || return
+    command_exists ps || return
+    threshold="$(read_threshold "Enter the CPU warning threshold (1-100): ")" || return
+
+    cpu_usage="$(get_cpu_usage)"
+    print_cpu_info "$cpu_usage"
+    echo ""
+
+    if [ "$cpu_usage" -gt "$threshold" ]; then
+        echo "WARNING: CPU usage is ${cpu_usage}%, above the ${threshold}% threshold."
+        log_activity "WARNING: CPU usage ${cpu_usage}% exceeded threshold ${threshold}%"
+    else
+        echo "OK: CPU usage is ${cpu_usage}%, within the ${threshold}% threshold."
+    fi
+    log_activity "Checked CPU usage: ${cpu_usage}% (threshold ${threshold}%)"
+}
+
 # Prints the main menu
 show_menu() {
     echo ""
@@ -74,6 +133,7 @@ show_menu() {
     echo "   SYSTEM HEALTH AND RESOURCE MONITOR"
     echo "========================================"
     echo "1. Display system information"
+    echo "2. Monitor CPU utilization"
     echo "0. Exit"
     echo "========================================"
 }
@@ -98,6 +158,9 @@ while true; do
     case "$choice" in
         1)
             show_system_info
+            ;;
+        2)
+            monitor_cpu
             ;;
         0)
             break
