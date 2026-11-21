@@ -164,6 +164,37 @@ monitor_memory() {
     log_activity "Checked memory usage: ${memory_usage}% (threshold ${threshold}%)"
 }
 
+# Prints used and available space for each real mounted filesystem
+print_disk_info() {
+    echo "========== DISK UTILIZATION =========="
+    df -hP -x tmpfs -x devtmpfs
+}
+
+# Menu option 4
+monitor_disk() {
+    local threshold
+    local full_filesystems
+
+    command_exists df || return
+    threshold="$(read_threshold "Enter the disk warning threshold (1-100): ")" || return
+
+    print_disk_info
+    echo ""
+
+    # Column 5 is "Use%" and column 6 is the mount point
+    full_filesystems="$(df -P -x tmpfs -x devtmpfs | awk -v limit="$threshold" \
+        'NR > 1 { usage = $5; sub("%", "", usage); if (usage + 0 > limit) print $6 " (" $5 ")" }')"
+
+    if [ -n "$full_filesystems" ]; then
+        echo "WARNING: these filesystems are above the ${threshold}% threshold:"
+        echo "$full_filesystems"
+        log_activity "WARNING: filesystems above disk threshold ${threshold}%: $(echo "$full_filesystems" | tr '\n' ' ')"
+    else
+        echo "OK: all filesystems are within the ${threshold}% threshold."
+    fi
+    log_activity "Checked disk usage (threshold ${threshold}%)"
+}
+
 # Prints the main menu
 show_menu() {
     echo ""
@@ -173,6 +204,7 @@ show_menu() {
     echo "1. Display system information"
     echo "2. Monitor CPU utilization"
     echo "3. Monitor memory utilization"
+    echo "4. Monitor disk utilization"
     echo "0. Exit"
     echo "========================================"
 }
@@ -203,6 +235,9 @@ while true; do
             ;;
         3)
             monitor_memory
+            ;;
+        4)
+            monitor_disk
             ;;
         0)
             break
