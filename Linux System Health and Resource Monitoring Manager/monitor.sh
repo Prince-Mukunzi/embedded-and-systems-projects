@@ -406,6 +406,29 @@ generate_report() {
     log_activity "Generated health report: $report_file"
 }
 
+# Menu option 8
+view_activity_log() {
+    echo "========== ACTIVITY LOG =========="
+    if [ ! -s "$LOG_FILE" ]; then
+        echo "The activity log is empty."
+        return
+    fi
+
+    cat "$LOG_FILE"
+}
+
+# Menu option 9
+clear_activity_log() {
+    if ! confirm "Are you sure you want to clear the activity log?"; then
+        echo "The activity log was not cleared."
+        return
+    fi
+
+    > "$LOG_FILE"
+    echo "The activity log has been cleared."
+    log_activity "Activity log cleared"
+}
+
 # Prints the main menu
 show_menu() {
     echo ""
@@ -419,6 +442,8 @@ show_menu() {
     echo "5. View and search running processes"
     echo "6. Terminate a process"
     echo "7. Generate a system health report"
+    echo "8. View activity log"
+    echo "9. Clear activity log"
     echo "0. Exit"
     echo "========================================"
 }
@@ -461,6 +486,12 @@ while true; do
             ;;
         7)
             generate_report
+            ;;
+        8)
+            view_activity_log
+            ;;
+        9)
+            clear_activity_log
             ;;
         0)
             break
