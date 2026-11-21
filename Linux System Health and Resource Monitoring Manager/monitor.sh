@@ -2,6 +2,7 @@
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 LOG_FILE="$SCRIPT_DIR/activity.log"
+PROTECTED_NAMES="init systemd kthreadd sshd dbus-daemon login"
 
 # Returns the current date and time in the format used by logs and reports
 timestamp() {
@@ -53,6 +54,14 @@ read_threshold() {
         # Sent to stderr so it is shown to the user and not captured as the threshold
         echo "Invalid threshold. Enter a whole number from 1 to 100." >&2
     done
+}
+
+# Asks a yes/no question and returns success only when the user types y or Y
+confirm() {
+    local answer
+
+    read -r -p "$1 (y/n): " answer
+    [ "$answer" = "y" ] || [ "$answer" = "Y" ]
 }
 
 # Prints how long the system has been running
@@ -274,6 +283,79 @@ view_processes() {
     esac
 }
 
+# Prints the reason a process must not be killed, or nothing if it is allowed
+protection_reason() {
+    local pid="$1"
+    local name="$(ps -p "$pid" -o comm=)"
+    local owner_uid="$(ps -p "$pid" -o uid= | tr -d ' ')"
+    local protected
+
+    if [ "$pid" -eq 1 ]; then
+        echo "PID 1 is the init process that keeps the system running."
+        return
+    fi
+
+    if [ "$pid" -eq "$$" ] || [ "$pid" -eq "$PPID" ]; then
+        echo "it is this monitor script or the shell that started it."
+        return
+    fi
+
+    for protected in $PROTECTED_NAMES; do
+        if [ "$name" = "$protected" ]; then
+            echo "'$name' is a protected system process."
+            return
+        fi
+    done
+
+    # Only root may stop processes that belong to other users
+    if [ "$(id -u)" -ne 0 ] && [ "$owner_uid" != "$(id -u)" ]; then
+        echo "you do not have permission to stop a process owned by another user."
+    fi
+}
+
+# Menu option 6
+terminate_process() {
+    local pid
+    local reason
+
+    command_exists ps || return
+    command_exists kill || return
+
+    read -r -p "Enter the PID of the process to terminate: " pid
+    if ! is_valid_pid "$pid"; then
+        echo "Error: '$pid' is not a valid PID. A PID is a positive whole number."
+        return
+    fi
+
+    if ! ps -p "$pid" > /dev/null; then
+        echo "Error: no running process has PID $pid."
+        log_activity "Terminate failed: PID $pid not found"
+        return
+    fi
+
+    reason="$(protection_reason "$pid")"
+    if [ -n "$reason" ]; then
+        echo "Refused: cannot terminate PID $pid because $reason"
+        log_activity "Terminate refused for PID $pid: $reason"
+        return
+    fi
+
+    ps -p "$pid" -o pid,user,comm,%cpu,%mem
+    if ! confirm "Are you sure you want to terminate this process?"; then
+        echo "Termination cancelled."
+        log_activity "Terminate cancelled for PID $pid"
+        return
+    fi
+
+    if kill "$pid" 2> /dev/null; then
+        echo "Process $pid has been sent the terminate signal."
+        log_activity "Terminated process PID $pid"
+    else
+        echo "Error: could not terminate PID $pid (permission denied or it already ended)."
+        log_activity "Terminate failed for PID $pid"
+    fi
+}
+
 # Prints the main menu
 show_menu() {
     echo ""
@@ -285,6 +367,7 @@ show_menu() {
     echo "3. Monitor memory utilization"
     echo "4. Monitor disk utilization"
     echo "5. View and search running processes"
+    echo "6. Terminate a process"
     echo "0. Exit"
     echo "========================================"
 }
@@ -321,6 +404,9 @@ while true; do
             ;;
         5)
             view_processes
+            ;;
+        6)
+            terminate_process
             ;;
         0)
             break
