@@ -196,11 +196,42 @@ void register_student(struct Student **students, int *student_count)
     printf("Student %d registered successfully.\n", new_student.id);
 }
 
+// Returns the percentage a student scored in one course
+float course_percentage(const struct Course *course)
+{
+    return course->marks / course->max_marks * 100.0f;
+}
+
+// Returns 1 if a percentage is a pass mark
+int is_pass(float percentage)
+{
+    return percentage >= PASS_PERCENT;
+}
+
+// Overall average as a percentage: total marks divided by total maximum marks, times 100
+float calculate_average(const struct Student *student)
+{
+    float total_marks = 0.0f;
+    float total_max_marks = 0.0f;
+    int i;
+
+    // No courses means nothing to divide by, so the average is reported as 0
+    if (student->course_count == 0) {
+        return 0.0f;
+    }
+
+    for (i = 0; i < student->course_count; i++) {
+        total_marks += student->courses[i].marks;
+        total_max_marks += student->courses[i].max_marks;
+    }
+    return total_marks / total_max_marks * 100.0f;
+}
+
 // Prints the column titles used by every student table
 void print_table_header(void)
 {
-    printf("%-8s %-30s %-25s %-5s %-7s\n", "ID", "Name", "Programme", "Year", "Courses");
-    printf("-----------------------------------------------------------------------------\n");
+    printf("%-8s %-30s %-25s %-5s %-7s %8s\n", "ID", "Name", "Programme", "Year", "Courses", "Average");
+    printf("--------------------------------------------------------------------------------------\n");
 }
 
 // Prints one student as a row of the table
@@ -209,8 +240,14 @@ void print_student_row(const struct Student *student)
     char full_name[NAME_LENGTH * 2];
 
     snprintf(full_name, sizeof(full_name), "%s %s", student->first_name, student->last_name);
-    printf("%-8d %-30s %-25s %-5d %-7d\n", student->id, full_name, student->programme,
+    printf("%-8d %-30s %-25s %-5d %-7d ", student->id, full_name, student->programme,
            student->year, student->course_count);
+
+    if (student->course_count == 0) {
+        printf("%8s\n", "N/A");
+    } else {
+        printf("%7.1f%%\n", calculate_average(student));
+    }
 }
 
 // Menu option 2: prints every registered student
@@ -569,6 +606,46 @@ void update_course_marks(struct Student *students, int student_count)
     printf("Marks for %s updated to %.1f.\n", course->code, course->marks);
 }
 
+// Menu option 8
+void display_performance(const struct Student *students, int student_count)
+{
+    const struct Student *student;
+    const struct Course *course;
+    float percentage;
+    float average;
+    int passed = 0;
+    int i;
+    int index = ask_for_student(students, student_count);
+
+    if (index == -1) {
+        return;
+    }
+    student = &students[index];
+
+    printf("\n----- ACADEMIC PERFORMANCE: %s %s (%d) -----\n", student->first_name, student->last_name,
+           student->id);
+    if (student->course_count == 0) {
+        printf("No courses registered, so there is no performance to show yet.\n");
+        return;
+    }
+
+    printf("%-10s %-30s %8s %8s %8s %6s\n", "Code", "Course name", "Marks", "Max", "Percent", "Result");
+    for (i = 0; i < student->course_count; i++) {
+        course = &student->courses[i];
+        percentage = course_percentage(course);
+        if (is_pass(percentage)) {
+            passed++;
+        }
+        printf("%-10s %-30s %8.1f %8.1f %7.1f%% %6s\n", course->code, course->name, course->marks,
+               course->max_marks, percentage, is_pass(percentage) ? "PASS" : "FAIL");
+    }
+
+    average = calculate_average(student);
+    printf("\nCourses passed  : %d of %d\n", passed, student->course_count);
+    printf("Overall average : %.1f%%\n", average);
+    printf("Overall result  : %s\n", is_pass(average) ? "PASS" : "FAIL");
+}
+
 // Prints the main menu
 void show_menu(void)
 {
@@ -582,6 +659,7 @@ void show_menu(void)
     printf(" 5. Delete a student\n");
     printf(" 6. Add a course to a student\n");
     printf(" 7. Update course marks\n");
+    printf(" 8. Display a student's academic performance\n");
     printf(" 0. Exit\n");
     printf("========================================\n");
 }
@@ -628,6 +706,9 @@ int main(void)
                 break;
             case 7:
                 update_course_marks(students, student_count);
+                break;
+            case 8:
+                display_performance(students, student_count);
                 break;
             case 0:
                 running = 0;
