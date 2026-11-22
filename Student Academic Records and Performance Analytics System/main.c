@@ -186,6 +186,40 @@ void register_student(struct Student **students, int *student_count)
     printf("Student %d registered successfully.\n", new_student.id);
 }
 
+// Prints the column titles used by every student table
+void print_table_header(void)
+{
+    printf("%-8s %-30s %-25s %-5s %-7s\n", "ID", "Name", "Programme", "Year", "Courses");
+    printf("-----------------------------------------------------------------------------\n");
+}
+
+// Prints one student as a row of the table
+void print_student_row(const struct Student *student)
+{
+    char full_name[NAME_LENGTH * 2];
+
+    snprintf(full_name, sizeof(full_name), "%s %s", student->first_name, student->last_name);
+    printf("%-8d %-30s %-25s %-5d %-7d\n", student->id, full_name, student->programme,
+           student->year, student->course_count);
+}
+
+// Menu option 2: prints every registered student
+void display_all_students(const struct Student *students, int student_count)
+{
+    int i;
+
+    if (student_count == 0) {
+        printf("No students are registered yet.\n");
+        return;
+    }
+
+    print_table_header();
+    for (i = 0; i < student_count; i++) {
+        print_student_row(&students[i]);
+    }
+    printf("Total: %d student(s)\n", student_count);
+}
+
 // Prints the main menu
 void show_menu(void)
 {
@@ -193,6 +227,7 @@ void show_menu(void)
     printf("  STUDENT ACADEMIC RECORDS SYSTEM\n");
     printf("========================================\n");
     printf(" 1. Register a new student\n");
+    printf(" 2. Display all students\n");
     printf(" 0. Exit\n");
     printf("========================================\n");
 }
@@ -221,6 +256,9 @@ int main(void)
         switch (choice) {
             case 1:
                 register_student(&students, &student_count);
+                break;
+            case 2:
+                display_all_students(students, student_count);
                 break;
             case 0:
                 running = 0;
