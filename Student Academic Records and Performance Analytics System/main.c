@@ -93,23 +93,31 @@ int is_blank(const char *text)
     return 1;
 }
 
-// Asks for text that is not empty, fits in the field and has no '|' (the save file separator)
+// Checks that text is not empty, fits in the field and has no '|' (the save file separator)
+int is_valid_text(const char *text, int size)
+{
+    if (is_blank(text)) {
+        printf("Error: this field cannot be empty.\n");
+        return 0;
+    }
+    if ((int) strlen(text) >= size) {
+        printf("Error: the text is too long (maximum %d characters).\n", size - 1);
+        return 0;
+    }
+    if (strchr(text, '|') != NULL) {
+        printf("Error: the '|' character is not allowed.\n");
+        return 0;
+    }
+    return 1;
+}
+
+// Asks for a text field and copies it into destination only if it is valid
 int read_text(const char *prompt, char *destination, int size)
 {
     char buffer[INPUT_LENGTH];
 
     read_line(prompt, buffer, INPUT_LENGTH);
-
-    if (is_blank(buffer)) {
-        printf("Error: this field cannot be empty.\n");
-        return 0;
-    }
-    if ((int) strlen(buffer) >= size) {
-        printf("Error: the text is too long (maximum %d characters).\n", size - 1);
-        return 0;
-    }
-    if (strchr(buffer, '|') != NULL) {
-        printf("Error: the '|' character is not allowed.\n");
+    if (!is_valid_text(buffer, size)) {
         return 0;
     }
 
@@ -276,6 +284,65 @@ void view_student(const struct Student *students, int student_count)
     }
 }
 
+// Asks for a new value for a text field. Pressing Enter keeps the current value.
+int update_text_field(const char *label, char *field, int size)
+{
+    char prompt[128];
+    char buffer[INPUT_LENGTH];
+
+    snprintf(prompt, sizeof(prompt), "%s [%s]: ", label, field);
+    read_line(prompt, buffer, INPUT_LENGTH);
+
+    if (buffer[0] == '\0') {
+        return 1;
+    }
+    if (!is_valid_text(buffer, size)) {
+        return 0;
+    }
+
+    strcpy(field, buffer);
+    return 1;
+}
+
+// Menu option 4
+void update_student(struct Student *students, int student_count)
+{
+    struct Student updated;
+    char prompt[64];
+    char buffer[INPUT_LENGTH];
+    int index = ask_for_student(students, student_count);
+
+    if (index == -1) {
+        return;
+    }
+
+    // Changes go into a copy first, so a mistake halfway through leaves the record unchanged
+    updated = students[index];
+    printf("Press Enter to keep the current value. The student ID cannot be changed.\n");
+
+    if (!update_text_field("First name", updated.first_name, NAME_LENGTH)) {
+        return;
+    }
+    if (!update_text_field("Last name", updated.last_name, NAME_LENGTH)) {
+        return;
+    }
+    if (!update_text_field("Programme of study", updated.programme, NAME_LENGTH)) {
+        return;
+    }
+
+    snprintf(prompt, sizeof(prompt), "Year of study (1-6) [%d]: ", updated.year);
+    read_line(prompt, buffer, INPUT_LENGTH);
+    if (buffer[0] != '\0') {
+        if (!parse_int(buffer, &updated.year) || !is_valid_year(updated.year)) {
+            printf("Error: the year of study must be a whole number from %d to %d.\n", MIN_YEAR, MAX_YEAR);
+            return;
+        }
+    }
+
+    students[index] = updated;
+    printf("Student %d updated successfully.\n", updated.id);
+}
+
 // Prints the main menu
 void show_menu(void)
 {
@@ -285,6 +352,7 @@ void show_menu(void)
     printf(" 1. Register a new student\n");
     printf(" 2. Display all students\n");
     printf(" 3. View student details\n");
+    printf(" 4. Update student information\n");
     printf(" 0. Exit\n");
     printf("========================================\n");
 }
@@ -319,6 +387,9 @@ int main(void)
                 break;
             case 3:
                 view_student(students, student_count);
+                break;
+            case 4:
+                update_student(students, student_count);
                 break;
             case 0:
                 running = 0;
