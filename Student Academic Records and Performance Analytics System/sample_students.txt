@@ -1,0 +1,20 @@
+6
+1001|Alice|Mukamana|Software Engineering|2|3
+CS101|Programming in C|78.50|100.00
+MA101|Calculus I|30.00|50.00
+EN101|Communication Skills|32.00|40.00
+1002|Jean|Habimana|Computer Science|1|2
+CS101|Programming in C|42.00|100.00
+EN101|Communication Skills|18.00|40.00
+1003|Grace|Uwase|Software Engineering|3|3
+CS101|Programming in C|91.00|100.00
+MA101|Calculus I|44.00|50.00
+DS201|Data Structures|83.00|100.00
+1004|Eric|Nshuti|Business Information Technology|1|2
+BT101|Introduction to Business|55.00|100.00
+EN101|Communication Skills|25.00|40.00
+1005|Diane|Ingabire|Computer Science|2|3
+CS101|Programming in C|35.00|100.00
+MA101|Calculus I|21.00|50.00
+DS201|Data Structures|40.00|100.00
+1006|Patrick|Mugisha|Business Information Technology|1|0
