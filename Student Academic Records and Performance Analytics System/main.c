@@ -532,6 +532,43 @@ void add_course(struct Student *students, int student_count)
     printf("Course %s added for student %d.\n", new_course.code, student->id);
 }
 
+// Menu option 7
+void update_course_marks(struct Student *students, int student_count)
+{
+    char code[INPUT_LENGTH];
+    float new_marks;
+    struct Course *course;
+    int course_index;
+    int index = ask_for_student(students, student_count);
+
+    if (index == -1) {
+        return;
+    }
+    if (students[index].course_count == 0) {
+        printf("Error: this student has not registered any courses yet.\n");
+        return;
+    }
+
+    display_student_details(&students[index]);
+    read_line("\nEnter the course code to update: ", code, INPUT_LENGTH);
+
+    course_index = find_course_index(&students[index], code);
+    if (course_index == -1) {
+        printf("Error: this student is not registered for course '%s'.\n", code);
+        return;
+    }
+    course = &students[index].courses[course_index];
+
+    printf("Current marks: %.1f out of %.1f\n", course->marks, course->max_marks);
+    if (!read_float("New marks: ", &new_marks) || !is_valid_marks(new_marks, course->max_marks)) {
+        printf("Error: marks must be a number from 0 to %.1f.\n", course->max_marks);
+        return;
+    }
+
+    course->marks = new_marks;
+    printf("Marks for %s updated to %.1f.\n", course->code, course->marks);
+}
+
 // Prints the main menu
 void show_menu(void)
 {
@@ -544,6 +581,7 @@ void show_menu(void)
     printf(" 4. Update student information\n");
     printf(" 5. Delete a student\n");
     printf(" 6. Add a course to a student\n");
+    printf(" 7. Update course marks\n");
     printf(" 0. Exit\n");
     printf("========================================\n");
 }
@@ -587,6 +625,9 @@ int main(void)
                 break;
             case 6:
                 add_course(students, student_count);
+                break;
+            case 7:
+                update_course_marks(students, student_count);
                 break;
             case 0:
                 running = 0;
