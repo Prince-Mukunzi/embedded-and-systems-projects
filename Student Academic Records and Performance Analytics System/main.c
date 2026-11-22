@@ -343,6 +343,67 @@ void update_student(struct Student *students, int student_count)
     printf("Student %d updated successfully.\n", updated.id);
 }
 
+// Asks a yes/no question. Returns 1 only if the user types y or Y.
+int ask_yes_no(const char *question)
+{
+    char buffer[INPUT_LENGTH];
+
+    read_line(question, buffer, INPUT_LENGTH);
+    return strcmp(buffer, "y") == 0 || strcmp(buffer, "Y") == 0;
+}
+
+// Menu option 5
+void delete_student(struct Student **students, int *student_count)
+{
+    struct Student *resized;
+    int deleted_id;
+    int i;
+    int index = ask_for_student(*students, *student_count);
+
+    if (index == -1) {
+        return;
+    }
+
+    print_table_header();
+    print_student_row(&(*students)[index]);
+    if (!ask_yes_no("Are you sure you want to delete this student? (y/n): ")) {
+        printf("Delete cancelled.\n");
+        return;
+    }
+
+    deleted_id = (*students)[index].id;
+    free((*students)[index].courses);
+
+    for (i = index; i < *student_count - 1; i++) {
+        (*students)[i] = (*students)[i + 1];
+    }
+    (*student_count)--;
+
+    if (*student_count == 0) {
+        free(*students);
+        *students = NULL;
+    } else {
+        resized = realloc(*students, *student_count * sizeof(struct Student));
+        // Shrinking almost never fails, and if it does the old, bigger block still works
+        if (resized != NULL) {
+            *students = resized;
+        }
+    }
+
+    printf("Student %d deleted successfully.\n", deleted_id);
+}
+
+// Releases the memory of every student and their courses
+void free_all_students(struct Student *students, int student_count)
+{
+    int i;
+
+    for (i = 0; i < student_count; i++) {
+        free(students[i].courses);
+    }
+    free(students);
+}
+
 // Prints the main menu
 void show_menu(void)
 {
@@ -353,6 +414,7 @@ void show_menu(void)
     printf(" 2. Display all students\n");
     printf(" 3. View student details\n");
     printf(" 4. Update student information\n");
+    printf(" 5. Delete a student\n");
     printf(" 0. Exit\n");
     printf("========================================\n");
 }
@@ -391,6 +453,9 @@ int main(void)
             case 4:
                 update_student(students, student_count);
                 break;
+            case 5:
+                delete_student(&students, &student_count);
+                break;
             case 0:
                 running = 0;
                 break;
@@ -400,6 +465,6 @@ int main(void)
     }
 
     printf("Goodbye.\n");
-    free(students);
+    free_all_students(students, student_count);
     return 0;
 }
