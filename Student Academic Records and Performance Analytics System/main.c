@@ -483,15 +483,21 @@ void to_lowercase(const char *source, char *destination, int size)
     destination[i] = '\0';
 }
 
-// Returns 1 if two texts are the same when upper and lower case are ignored
-int same_text_ignore_case(const char *first, const char *second)
+// Like strcmp but ignores case: negative if first comes before second, 0 if equal, positive if after
+int compare_ignore_case(const char *first, const char *second)
 {
     char first_lower[INPUT_LENGTH];
     char second_lower[INPUT_LENGTH];
 
     to_lowercase(first, first_lower, INPUT_LENGTH);
     to_lowercase(second, second_lower, INPUT_LENGTH);
-    return strcmp(first_lower, second_lower) == 0;
+    return strcmp(first_lower, second_lower);
+}
+
+// Returns 1 if two texts are the same when upper and lower case are ignored
+int same_text_ignore_case(const char *first, const char *second)
+{
+    return compare_ignore_case(first, second) == 0;
 }
 
 // Linear search: returns the position of the course with this code, or -1 if not found
@@ -742,6 +748,78 @@ void search_students(const struct Student *students, int student_count)
     }
 }
 
+// Returns 1 if student a must move after student b for the chosen sort order
+int should_swap(const struct Student *a, const struct Student *b, int sort_type)
+{
+    int name_order;
+
+    switch (sort_type) {
+        case 1:
+            return a->id > b->id;
+        case 2:
+            name_order = compare_ignore_case(a->first_name, b->first_name);
+            if (name_order == 0) {
+                name_order = compare_ignore_case(a->last_name, b->last_name);
+            }
+            return name_order > 0;
+        case 3:
+            return calculate_average(a) < calculate_average(b);
+        default:
+            return compare_ignore_case(a->programme, b->programme) > 0;
+    }
+}
+
+// Bubble sort: swaps neighbours that are in the wrong order until a full pass makes no swaps
+void bubble_sort_students(struct Student *students, int student_count, int sort_type)
+{
+    struct Student temp;
+    int swapped;
+    int i;
+    int j;
+
+    for (i = 0; i < student_count - 1; i++) {
+        swapped = 0;
+
+        for (j = 0; j < student_count - 1 - i; j++) {
+            if (should_swap(&students[j], &students[j + 1], sort_type)) {
+                temp = students[j];
+                students[j] = students[j + 1];
+                students[j + 1] = temp;
+                swapped = 1;
+            }
+        }
+
+        if (!swapped) {
+            break;
+        }
+    }
+}
+
+// Menu option 10
+void sort_students(struct Student *students, int student_count)
+{
+    int option;
+
+    if (student_count == 0) {
+        printf("No students are registered yet.\n");
+        return;
+    }
+
+    printf("\n----- SORT STUDENTS -----\n");
+    printf("1. By student ID\n");
+    printf("2. By name (alphabetical)\n");
+    printf("3. By overall average (highest first)\n");
+    printf("4. By programme of study (alphabetical)\n");
+    if (!read_int("Choose an option: ", &option) || option < 1 || option > 4) {
+        printf("Error: please choose a number from 1 to 4.\n");
+        return;
+    }
+
+    bubble_sort_students(students, student_count, option);
+    printf("Students sorted.\n");
+    display_all_students(students, student_count);
+}
+
 // Prints the main menu
 void show_menu(void)
 {
@@ -757,6 +835,7 @@ void show_menu(void)
     printf(" 7. Update course marks\n");
     printf(" 8. Display a student's academic performance\n");
     printf(" 9. Search students\n");
+    printf("10. Sort students\n");
     printf(" 0. Exit\n");
     printf("========================================\n");
 }
@@ -809,6 +888,9 @@ int main(void)
                 break;
             case 9:
                 search_students(students, student_count);
+                break;
+            case 10:
+                sort_students(students, student_count);
                 break;
             case 0:
                 running = 0;
