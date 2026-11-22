@@ -1,8 +1,8 @@
 CC = gcc
 CFLAGS = -Wall -Wextra -std=c11
 TARGET = records
-SOURCES = main.c input.c
-HEADERS = records.h input.h
+SOURCES = main.c input.c student.c
+HEADERS = records.h input.h student.h
 
 all: $(TARGET)
 
