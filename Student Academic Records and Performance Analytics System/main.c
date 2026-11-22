@@ -220,6 +220,62 @@ void display_all_students(const struct Student *students, int student_count)
     printf("Total: %d student(s)\n", student_count);
 }
 
+// Asks for a student ID and returns that student's position, or -1 with an error message
+int ask_for_student(const struct Student *students, int student_count)
+{
+    int id;
+    int index;
+
+    if (student_count == 0) {
+        printf("No students are registered yet.\n");
+        return -1;
+    }
+    if (!read_int("Enter the student ID: ", &id)) {
+        printf("Error: the student ID must be a whole number.\n");
+        return -1;
+    }
+
+    index = find_student_index(students, student_count, id);
+    if (index == -1) {
+        printf("Error: no student has ID %d.\n", id);
+    }
+    return index;
+}
+
+// Prints all the personal details and courses of one student
+void display_student_details(const struct Student *student)
+{
+    int i;
+
+    printf("\n----- STUDENT DETAILS -----\n");
+    printf("Student ID : %d\n", student->id);
+    printf("Name       : %s %s\n", student->first_name, student->last_name);
+    printf("Programme  : %s\n", student->programme);
+    printf("Year       : %d\n", student->year);
+    printf("Courses    : %d\n", student->course_count);
+
+    if (student->course_count == 0) {
+        printf("This student has not registered any courses yet.\n");
+        return;
+    }
+
+    printf("\n%-10s %-30s %8s %8s\n", "Code", "Course name", "Marks", "Max");
+    for (i = 0; i < student->course_count; i++) {
+        printf("%-10s %-30s %8.1f %8.1f\n", student->courses[i].code, student->courses[i].name,
+               student->courses[i].marks, student->courses[i].max_marks);
+    }
+}
+
+// Menu option 3
+void view_student(const struct Student *students, int student_count)
+{
+    int index = ask_for_student(students, student_count);
+
+    if (index != -1) {
+        display_student_details(&students[index]);
+    }
+}
+
 // Prints the main menu
 void show_menu(void)
 {
@@ -228,6 +284,7 @@ void show_menu(void)
     printf("========================================\n");
     printf(" 1. Register a new student\n");
     printf(" 2. Display all students\n");
+    printf(" 3. View student details\n");
     printf(" 0. Exit\n");
     printf("========================================\n");
 }
@@ -259,6 +316,9 @@ int main(void)
                 break;
             case 2:
                 display_all_students(students, student_count);
+                break;
+            case 3:
+                view_student(students, student_count);
                 break;
             case 0:
                 running = 0;
