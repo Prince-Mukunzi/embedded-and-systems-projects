@@ -159,7 +159,7 @@ void print_programme_counts(const struct Student *students, int student_count)
 
     printf("\nStudents per programme of study:\n");
     for (i = 0; i < summary_count; i++) {
-        printf("  %-30s %d\n", summaries[i].programme, summaries[i].student_count);
+        printf("  %-32s %d\n", summaries[i].programme, summaries[i].student_count);
     }
 
     free(summaries);

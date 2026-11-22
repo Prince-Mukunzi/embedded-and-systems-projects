@@ -90,8 +90,8 @@ float calculate_average(const struct Student *student)
 // Prints the column titles used by every student table
 void print_table_header(void)
 {
-    printf("%-8s %-30s %-25s %-5s %-7s %8s\n", "ID", "Name", "Programme", "Year", "Courses", "Average");
-    printf("--------------------------------------------------------------------------------------\n");
+    printf("%-8s %-30s %-32s %-5s %-7s %8s\n", "ID", "Name", "Programme", "Year", "Courses", "Average");
+    printf("---------------------------------------------------------------------------------------------\n");
 }
 
 // Prints one student as a row of the table
@@ -100,7 +100,7 @@ void print_student_row(const struct Student *student)
     char full_name[NAME_LENGTH * 2];
 
     snprintf(full_name, sizeof(full_name), "%s %s", student->first_name, student->last_name);
-    printf("%-8d %-30s %-25s %-5d %-7d ", student->id, full_name, student->programme,
+    printf("%-8d %-30s %-32s %-5d %-7d ", student->id, full_name, student->programme,
            student->year, student->course_count);
 
     if (student->course_count == 0) {
