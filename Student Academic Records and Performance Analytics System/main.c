@@ -1005,6 +1005,46 @@ void generate_report(const struct Student *students, int student_count)
     printf("=================================================\n");
 }
 
+// Writes every student and their courses to a text file. Returns 1 on success.
+int save_records(const struct Student *students, int student_count, const char *filename)
+{
+    FILE *file;
+    const struct Student *student;
+    const struct Course *course;
+    int write_failed;
+    int i;
+    int j;
+
+    file = fopen(filename, "w");
+    if (file == NULL) {
+        printf("Error: could not open %s for writing.\n", filename);
+        return 0;
+    }
+
+    // Line 1 is the number of students, then each student line is followed by its course lines
+    fprintf(file, "%d\n", student_count);
+    for (i = 0; i < student_count; i++) {
+        student = &students[i];
+        fprintf(file, "%d|%s|%s|%s|%d|%d\n", student->id, student->first_name, student->last_name,
+                student->programme, student->year, student->course_count);
+
+        for (j = 0; j < student->course_count; j++) {
+            course = &student->courses[j];
+            fprintf(file, "%s|%s|%.2f|%.2f\n", course->code, course->name, course->marks, course->max_marks);
+        }
+    }
+
+    // fclose also writes out anything still waiting in memory, so its result must be checked
+    write_failed = ferror(file);
+    if (fclose(file) != 0 || write_failed) {
+        printf("Error: something went wrong while writing %s.\n", filename);
+        return 0;
+    }
+
+    printf("%d student record(s) saved to %s.\n", student_count, filename);
+    return 1;
+}
+
 // Prints the main menu
 void show_menu(void)
 {
@@ -1022,7 +1062,8 @@ void show_menu(void)
     printf(" 9. Search students\n");
     printf("10. Sort students\n");
     printf("11. Academic performance report\n");
-    printf(" 0. Exit\n");
+    printf("12. Save records to file\n");
+    printf(" 0. Save and exit\n");
     printf("========================================\n");
 }
 
@@ -1038,7 +1079,8 @@ int main(void)
         show_menu();
 
         if (!read_line("Choose an option: ", input, INPUT_LENGTH)) {
-            printf("\n");
+            printf("\nInput ended. Saving before closing.\n");
+            save_records(students, student_count, DATA_FILE);
             break;
         }
 
@@ -1081,8 +1123,14 @@ int main(void)
             case 11:
                 generate_report(students, student_count);
                 break;
+            case 12:
+                save_records(students, student_count, DATA_FILE);
+                break;
             case 0:
-                running = 0;
+                if (save_records(students, student_count, DATA_FILE)
+                    || ask_yes_no("Saving failed. Exit without saving? (y/n): ")) {
+                    running = 0;
+                }
                 break;
             default:
                 printf("Error: %d is not a menu option.\n", choice);
