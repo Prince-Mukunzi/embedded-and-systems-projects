@@ -3,6 +3,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <limits.h>
+#include <math.h>
 
 #define DATA_FILE "students.txt"
 #define NAME_LENGTH 50
@@ -11,6 +12,7 @@
 #define PASS_PERCENT 50.0f
 #define MIN_YEAR 1
 #define MAX_YEAR 6
+#define MAX_MARKS_LIMIT 1000.0f
 
 struct Course {
     char code[CODE_LENGTH];
@@ -404,6 +406,132 @@ void free_all_students(struct Student *students, int student_count)
     free(students);
 }
 
+// Converts text to a decimal number. Returns 1 only if the whole text is a valid number.
+int parse_float(const char *text, float *value)
+{
+    char *end;
+    double number;
+
+    if (text[0] == '\0') {
+        return 0;
+    }
+
+    number = strtod(text, &end);
+    // strtod also accepts words like "nan" and "inf", which are not real marks
+    if (*end != '\0' || !isfinite(number)) {
+        return 0;
+    }
+
+    *value = (float) number;
+    return 1;
+}
+
+// Asks for a decimal number. Returns 1 if the user typed a valid one.
+int read_float(const char *prompt, float *value)
+{
+    char buffer[INPUT_LENGTH];
+
+    read_line(prompt, buffer, INPUT_LENGTH);
+    return parse_float(buffer, value);
+}
+
+// Copies text into destination with every letter in lowercase
+void to_lowercase(const char *source, char *destination, int size)
+{
+    int i;
+
+    for (i = 0; source[i] != '\0' && i < size - 1; i++) {
+        destination[i] = tolower((unsigned char) source[i]);
+    }
+    destination[i] = '\0';
+}
+
+// Returns 1 if two texts are the same when upper and lower case are ignored
+int same_text_ignore_case(const char *first, const char *second)
+{
+    char first_lower[INPUT_LENGTH];
+    char second_lower[INPUT_LENGTH];
+
+    to_lowercase(first, first_lower, INPUT_LENGTH);
+    to_lowercase(second, second_lower, INPUT_LENGTH);
+    return strcmp(first_lower, second_lower) == 0;
+}
+
+// Linear search: returns the position of the course with this code, or -1 if not found
+int find_course_index(const struct Student *student, const char *code)
+{
+    int i;
+
+    for (i = 0; i < student->course_count; i++) {
+        if (same_text_ignore_case(student->courses[i].code, code)) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+// Returns 1 if the maximum marks are above zero and not unrealistically large
+int is_valid_max_marks(float max_marks)
+{
+    return max_marks > 0 && max_marks <= MAX_MARKS_LIMIT;
+}
+
+// Returns 1 if the marks are between zero and the maximum marks
+int is_valid_marks(float marks, float max_marks)
+{
+    return marks >= 0 && marks <= max_marks;
+}
+
+// Menu option 6
+void add_course(struct Student *students, int student_count)
+{
+    struct Course new_course;
+    struct Course *resized;
+    struct Student *student;
+    int index = ask_for_student(students, student_count);
+
+    if (index == -1) {
+        return;
+    }
+    student = &students[index];
+
+    if (!read_text("Course code: ", new_course.code, CODE_LENGTH)) {
+        return;
+    }
+    if (find_course_index(student, new_course.code) != -1) {
+        printf("Error: %s is already registered for this student.\n", new_course.code);
+        return;
+    }
+    if (!read_text("Course name: ", new_course.name, NAME_LENGTH)) {
+        return;
+    }
+    if (!read_float("Maximum marks: ", &new_course.max_marks) || !is_valid_max_marks(new_course.max_marks)) {
+        printf("Error: maximum marks must be a number above 0 and up to %.0f.\n", MAX_MARKS_LIMIT);
+        return;
+    }
+    if (!read_float("Marks obtained: ", &new_course.marks)
+        || !is_valid_marks(new_course.marks, new_course.max_marks)) {
+        printf("Error: marks must be a number from 0 to %.1f.\n", new_course.max_marks);
+        return;
+    }
+
+    if (student->course_count == 0) {
+        resized = calloc(1, sizeof(struct Course));
+    } else {
+        resized = realloc(student->courses, (student->course_count + 1) * sizeof(struct Course));
+    }
+
+    if (resized == NULL) {
+        printf("Error: not enough memory to add the course.\n");
+        return;
+    }
+
+    student->courses = resized;
+    student->courses[student->course_count] = new_course;
+    student->course_count++;
+    printf("Course %s added for student %d.\n", new_course.code, student->id);
+}
+
 // Prints the main menu
 void show_menu(void)
 {
@@ -415,6 +543,7 @@ void show_menu(void)
     printf(" 3. View student details\n");
     printf(" 4. Update student information\n");
     printf(" 5. Delete a student\n");
+    printf(" 6. Add a course to a student\n");
     printf(" 0. Exit\n");
     printf("========================================\n");
 }
@@ -455,6 +584,9 @@ int main(void)
                 break;
             case 5:
                 delete_student(&students, &student_count);
+                break;
+            case 6:
+                add_course(students, student_count);
                 break;
             case 0:
                 running = 0;
