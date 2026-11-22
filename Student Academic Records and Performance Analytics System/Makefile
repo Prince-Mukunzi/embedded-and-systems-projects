@@ -2,7 +2,7 @@ CC = gcc
 CFLAGS = -Wall -Wextra -std=c11
 TARGET = records
 SOURCES = main.c
-HEADERS =
+HEADERS = records.h
 
 all: $(TARGET)
 
