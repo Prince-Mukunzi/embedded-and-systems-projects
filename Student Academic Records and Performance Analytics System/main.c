@@ -646,6 +646,102 @@ void display_performance(const struct Student *students, int student_count)
     printf("Overall result  : %s\n", is_pass(average) ? "PASS" : "FAIL");
 }
 
+// Returns 1 if part appears anywhere inside text, ignoring upper and lower case
+int contains_ignore_case(const char *text, const char *part)
+{
+    char text_lower[INPUT_LENGTH];
+    char part_lower[INPUT_LENGTH];
+
+    to_lowercase(text, text_lower, INPUT_LENGTH);
+    to_lowercase(part, part_lower, INPUT_LENGTH);
+    return strstr(text_lower, part_lower) != NULL;
+}
+
+// Prints the student with the ID the user types
+void search_by_id(const struct Student *students, int student_count)
+{
+    int index = ask_for_student(students, student_count);
+
+    if (index != -1) {
+        print_table_header();
+        print_student_row(&students[index]);
+    }
+}
+
+// Linear search through every student. search_type 2 checks the names, 3 checks the programme.
+void search_by_text(const struct Student *students, int student_count, int search_type)
+{
+    char search_text[INPUT_LENGTH];
+    int found = 0;
+    int is_match;
+    int i;
+
+    if (search_type == 2) {
+        read_line("Enter the first or last name (or part of it): ", search_text, INPUT_LENGTH);
+    } else {
+        read_line("Enter the programme (or part of it): ", search_text, INPUT_LENGTH);
+    }
+
+    if (is_blank(search_text)) {
+        printf("Error: the search text cannot be empty.\n");
+        return;
+    }
+
+    for (i = 0; i < student_count; i++) {
+        if (search_type == 2) {
+            is_match = contains_ignore_case(students[i].first_name, search_text)
+                       || contains_ignore_case(students[i].last_name, search_text);
+        } else {
+            is_match = contains_ignore_case(students[i].programme, search_text);
+        }
+
+        if (is_match) {
+            if (found == 0) {
+                print_table_header();
+            }
+            print_student_row(&students[i]);
+            found++;
+        }
+    }
+
+    if (found == 0) {
+        printf("No students match '%s'.\n", search_text);
+    } else {
+        printf("%d student(s) found.\n", found);
+    }
+}
+
+// Menu option 9
+void search_students(const struct Student *students, int student_count)
+{
+    int option;
+
+    if (student_count == 0) {
+        printf("No students are registered yet.\n");
+        return;
+    }
+
+    printf("\n----- SEARCH STUDENTS -----\n");
+    printf("1. By student ID\n");
+    printf("2. By first or last name\n");
+    printf("3. By programme of study\n");
+    if (!read_int("Choose an option: ", &option)) {
+        option = 0;
+    }
+
+    switch (option) {
+        case 1:
+            search_by_id(students, student_count);
+            break;
+        case 2:
+        case 3:
+            search_by_text(students, student_count, option);
+            break;
+        default:
+            printf("Error: please choose 1, 2 or 3.\n");
+    }
+}
+
 // Prints the main menu
 void show_menu(void)
 {
@@ -660,6 +756,7 @@ void show_menu(void)
     printf(" 6. Add a course to a student\n");
     printf(" 7. Update course marks\n");
     printf(" 8. Display a student's academic performance\n");
+    printf(" 9. Search students\n");
     printf(" 0. Exit\n");
     printf("========================================\n");
 }
@@ -709,6 +806,9 @@ int main(void)
                 break;
             case 8:
                 display_performance(students, student_count);
+                break;
+            case 9:
+                search_students(students, student_count);
                 break;
             case 0:
                 running = 0;
