@@ -1,8 +1,8 @@
 CC = gcc
 CFLAGS = -Wall -Wextra -std=c11
 TARGET = sales
-SOURCES = main.c input.c utils.c transaction.c
-HEADERS = sales.h input.h utils.h transaction.h
+SOURCES = main.c input.c utils.c transaction.c operations.c
+HEADERS = sales.h input.h utils.h transaction.h operations.h
 
 all: $(TARGET)
 
