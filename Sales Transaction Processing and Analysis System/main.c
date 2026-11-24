@@ -189,6 +189,17 @@ int same_text_ignore_case(const char *first, const char *second)
     return compare_ignore_case(first, second) == 0;
 }
 
+// Returns 1 if part appears anywhere inside text, ignoring upper and lower case
+int contains_ignore_case(const char *text, const char *part)
+{
+    char text_lower[INPUT_LENGTH];
+    char part_lower[INPUT_LENGTH];
+
+    to_lowercase(text, text_lower, INPUT_LENGTH);
+    to_lowercase(part, part_lower, INPUT_LENGTH);
+    return strstr(text_lower, part_lower) != NULL;
+}
+
 // Returns 1 for leap years, when February has 29 days
 int is_leap_year(int year)
 {
@@ -698,6 +709,110 @@ void filter_menu(const struct TransactionList *list)
     }
 }
 
+// Prints the transaction with the ID the user types
+void search_by_id(const struct TransactionList *list)
+{
+    int index = ask_for_transaction(list);
+
+    if (index != -1) {
+        print_table_header();
+        print_transaction(&list->items[index]);
+    }
+}
+
+// Linear search: prints every transaction whose product name contains the text typed
+void search_by_product(const struct TransactionList *list)
+{
+    char search_text[INPUT_LENGTH];
+    int found = 0;
+    int i;
+
+    read_line("Enter the product name (or part of it): ", search_text, INPUT_LENGTH);
+    if (is_blank(search_text)) {
+        printf("Error: the search text cannot be empty.\n");
+        return;
+    }
+
+    for (i = 0; i < list->count; i++) {
+        if (contains_ignore_case(list->items[i].product, search_text)) {
+            if (found == 0) {
+                print_table_header();
+            }
+            print_transaction(&list->items[i]);
+            found++;
+        }
+    }
+
+    if (found == 0) {
+        printf("No transactions match '%s'.\n", search_text);
+    } else {
+        printf("%d transaction(s) found.\n", found);
+    }
+}
+
+// Linear search: prints every transaction whose total amount equals the amount typed
+void search_by_amount(const struct TransactionList *list)
+{
+    float amount;
+    int found = 0;
+    int i;
+
+    if (!read_float("Enter the transaction amount: ", &amount) || amount <= 0) {
+        printf("Error: the amount must be a number above 0.\n");
+        return;
+    }
+
+    for (i = 0; i < list->count; i++) {
+        // Decimal numbers are stored with tiny rounding errors, so "equal" means within half a cent
+        if (fabsf(list->items[i].total - amount) < 0.005f) {
+            if (found == 0) {
+                print_table_header();
+            }
+            print_transaction(&list->items[i]);
+            found++;
+        }
+    }
+
+    if (found == 0) {
+        printf("No transactions have a total of %.2f.\n", amount);
+    } else {
+        printf("%d transaction(s) found.\n", found);
+    }
+}
+
+// Menu option 7
+void search_transactions(const struct TransactionList *list)
+{
+    int option;
+
+    if (list->count == 0) {
+        printf("No transactions have been recorded yet.\n");
+        return;
+    }
+
+    printf("\n----- SEARCH TRANSACTIONS -----\n");
+    printf("1. By transaction ID\n");
+    printf("2. By product name\n");
+    printf("3. By transaction amount\n");
+    if (!read_int("Choose an option: ", &option)) {
+        option = 0;
+    }
+
+    switch (option) {
+        case 1:
+            search_by_id(list);
+            break;
+        case 2:
+            search_by_product(list);
+            break;
+        case 3:
+            search_by_amount(list);
+            break;
+        default:
+            printf("Error: please choose 1, 2 or 3.\n");
+    }
+}
+
 // Prints the main menu
 void show_menu(void)
 {
@@ -708,6 +823,7 @@ void show_menu(void)
     printf(" 4. Delete Transaction\n");
     printf(" 5. Process Sales Data\n");
     printf(" 6. Filter Transactions (Callbacks)\n");
+    printf(" 7. Search Transactions\n");
     printf(" 0. Exit\n");
 }
 
@@ -754,6 +870,9 @@ int main(void)
                 break;
             case 6:
                 filter_menu(&list);
+                break;
+            case 7:
+                search_transactions(&list);
                 break;
             case 0:
                 running = 0;
