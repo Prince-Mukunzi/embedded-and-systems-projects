@@ -242,13 +242,29 @@ int is_valid_quantity(int quantity)
     return quantity > 0 && quantity <= MAX_QUANTITY;
 }
 
+// Returns 1 when two decimal numbers differ by less than the tolerance
+int is_close(double first, double second, double tolerance)
+{
+    double difference = first - second;
+
+    if (difference < 0) {
+        difference = -difference;
+    }
+    return difference < tolerance;
+}
+
 // Returns 1 if the unit price is above zero, within the limit, and has at most 2 decimal places
 int is_valid_price(double price)
 {
     double cents = price * 100;
+    long whole_cents;
 
-    // A real price is a whole number of cents, so cents must be (almost exactly) a whole number
-    return price > 0 && price <= MAX_PRICE && fabs(cents - round(cents)) < 0.000001;
+    if (price > 0 && price <= MAX_PRICE) {
+        // A real price is a whole number of cents, so cents must be (almost exactly) a whole number
+        whole_cents = (long)(cents + 0.5);
+        return is_close(cents, whole_cents, 0.000001);
+    }
+    return 0;
 }
 
 // Creates an empty list with room for a few transactions. Returns 0 if memory runs out.
@@ -769,7 +785,7 @@ void search_by_amount(const struct TransactionList *list)
 
     for (i = 0; i < list->count; i++) {
         // Decimal numbers are stored with tiny rounding errors, so "equal" means within half a cent
-        if (fabs(list->items[i].total - amount) < 0.005) {
+        if (is_close(list->items[i].total, amount, 0.005)) {
             if (found == 0) {
                 print_table_header();
             }
@@ -1030,7 +1046,7 @@ int parse_transaction_line(const char *line, struct Transaction *transaction)
     // The saved total must match quantity times price, which catches a wrongly edited file
     return transaction->id > 0 && is_valid_quantity(transaction->quantity) && is_valid_price(transaction->unit_price)
            && is_valid_date(transaction->date)
-           && fabs(transaction->total - transaction->quantity * transaction->unit_price) < 0.005;
+           && is_close(transaction->total, transaction->quantity * transaction->unit_price, 0.005);
 }
 
 // Reads the file into a new list. The current list is replaced only if everything loads correctly.
