@@ -1,0 +1,22 @@
+========== ACADEMIC PERFORMANCE REPORT ==========
+Total registered students        : 6
+Total courses across all students: 13
+Overall average performance      : 59.9%
+Highest average                  : Grace Uwase (1003) with 87.2%
+Lowest average                   : Diane Ingabire (1005) with 38.4%
+Students passing (average >= 50%): 3
+Students failing                 : 2
+Students with no courses yet     : 1
+
+Average performance per course:
+  CS101      Programming in C                 61.6%  (4 student(s))
+  MA101      Calculus I                       63.3%  (3 student(s))
+  EN101      Communication Skills             62.5%  (3 student(s))
+  DS201      Data Structures                  61.5%  (2 student(s))
+  BT101      Introduction to Business         55.0%  (1 student(s))
+
+Students per programme of study:
+  Software Engineering             2
+  Computer Science                 2
+  Business Information Technology  2
+=================================================

@@ -1,0 +1,4 @@
+records
+*.o
+students.txt
+records.dSYM/
