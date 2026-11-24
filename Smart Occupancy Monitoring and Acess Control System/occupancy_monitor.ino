@@ -181,6 +181,44 @@ void update_lcd(const struct OccupancyInfo *info)
     }
 }
 
+// Replaces the record with a fresh one. The new record is made first, so if memory runs out
+// the old record is kept and nothing is lost.
+void reset_occupancy(struct OccupancyInfo **info_pointer)
+{
+    struct OccupancyInfo *fresh_record = create_occupancy_record(MAX_CAPACITY);
+
+    if (fresh_record == NULL) {
+        Serial.println("ERROR: not enough memory to reset. The current counts are kept.");
+        return;
+    }
+
+    free(*info_pointer);
+    *info_pointer = fresh_record;
+    Serial.println("System reset: all counts are back to zero.");
+}
+
+// Reacts to a command typed in the Serial Monitor: s = statistics, r = reset
+void handle_serial_command(struct OccupancyInfo **info_pointer)
+{
+    char command = (char) Serial.read();
+    char message[MESSAGE_LENGTH];
+
+    // The Serial Monitor sends Enter as '\n' or '\r', which are not commands
+    if (command == '\n' || command == '\r') {
+        return;
+    }
+
+    if (command == 's' || command == 'S') {
+        print_statistics(*info_pointer);
+    } else if (command == 'r' || command == 'R') {
+        reset_occupancy(info_pointer);
+        update_leds(*info_pointer);
+    } else {
+        snprintf(message, MESSAGE_LENGTH, "ERROR: unknown command '%c'. Use s or r.", command);
+        Serial.println(message);
+    }
+}
+
 void setup()
 {
     Serial.begin(SERIAL_BAUD_RATE);
@@ -200,6 +238,7 @@ void setup()
     }
 
     Serial.println("Smart Occupancy Monitoring System started.");
+    Serial.println("Serial commands: s = show statistics, r = reset counts");
     print_statistics(occupancy);
     update_leds(occupancy);
     update_lcd(occupancy);
@@ -219,6 +258,10 @@ void loop()
     if (button_was_pressed(&exit_button)) {
         record_exit(occupancy);
         update_leds(occupancy);
+    }
+
+    if (Serial.available() > 0) {
+        handle_serial_command(&occupancy);
     }
 
     // millis() keeps the LCD refreshing without delay(), so button presses are never missed
