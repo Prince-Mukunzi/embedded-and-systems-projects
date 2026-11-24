@@ -1,0 +1,20 @@
+===== MULTI-THREADED DOCUMENT ANALYZER =====
+
+Search Keyword: IoT
+Number of Input Files: 3
+
+[Thread 1] Processing document1.txt ...
+[Thread 2] Processing document2.txt ...
+[Thread 3] Processing document3.txt ...
+[Thread 1] Successfully processed document1.txt
+[Thread 2] Successfully processed document2.txt
+[Thread 3] Successfully processed document3.txt
+
+===== PROCESSING SUMMARY =====
+
+document1.txt: Completed (6 occurrence(s) on 5 line(s), report: document1_report.txt)
+document2.txt: Completed (5 occurrence(s) on 4 line(s), report: document2_report.txt)
+document3.txt: Completed (4 occurrence(s) on 3 line(s), report: document3_report.txt)
+
+All processing tasks completed.
+Reports generated successfully.
