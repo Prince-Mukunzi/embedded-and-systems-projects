@@ -1,0 +1,8 @@
+Hospitals use connected devices to watch patients around the clock.
+Wearable heart monitors send alerts to nurses when readings look unusual.
+Medical IoT must follow strict privacy rules.
+Patient data should be encrypted before it leaves the device.
+Some clinics track medicine fridges with IoT temperature sensors.
+If a fridge gets too warm, an alarm sends a text message to staff.
+Remote care helps people in rural areas see a doctor without travelling.
+The future of iot in health care depends on trust, and trust in IoT depends on security.

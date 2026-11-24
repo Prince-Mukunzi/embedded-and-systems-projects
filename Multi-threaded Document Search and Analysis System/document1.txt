@@ -1,0 +1,9 @@
+The Internet of Things, or IoT, connects everyday objects to the internet.
+Smart homes use IoT devices such as thermostats, door locks and lights.
+A smart thermostat learns when people are home and saves energy.
+Many iot devices send small amounts of data many times a day.
+Security is a big concern because cheap IOT devices often ship with default passwords.
+
+Updating firmware regularly keeps devices safer.
+In Kigali, IoT sensors can help monitor traffic, and IoT cameras can report accidents.
+Good network design matters more as the number of connected devices grows.

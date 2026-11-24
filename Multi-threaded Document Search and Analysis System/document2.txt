@@ -1,0 +1,10 @@
+Agriculture is one of the fastest growing areas for IoT.
+Soil moisture sensors tell farmers exactly when to water their crops.
+Weather stations send readings to a phone app every ten minutes.
+An iot gateway collects data from sensors spread across a large farm.
+Batteries in field sensors can last for years with low power radios.
+Farmers compare IoT data with past harvests, and the IoT dashboard shows trends.
+Drones take photos of crops to spot disease early.
+Cooperatives can share one gateway to keep costs low.
+Clean data is the first step to good decisions.
+The IOT market for farming keeps growing every year.
