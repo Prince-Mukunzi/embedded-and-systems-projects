@@ -1,4 +1,4 @@
-#include <LiquidCrystal.h>
+#include <Adafruit_LiquidCrystal.h>
 
 #define ENTRY_BUTTON_PIN 6
 #define EXIT_BUTTON_PIN 7
@@ -29,7 +29,8 @@ struct Button {
     unsigned long last_change_time;
 };
 
-LiquidCrystal lcd(12, 11, 5, 4, 3, 2);
+// 0 selects the LCD's default I2C address (0x20), which is the Tinkercad default
+Adafruit_LiquidCrystal lcd(0);
 struct OccupancyInfo *occupancy = NULL;
 unsigned long last_lcd_update = 0;
 struct Button entry_button = {ENTRY_BUTTON_PIN, HIGH, HIGH, 0};
@@ -227,6 +228,7 @@ void setup()
     pinMode(GREEN_LED_PIN, OUTPUT);
     pinMode(RED_LED_PIN, OUTPUT);
     lcd.begin(LCD_COLUMNS, LCD_ROWS);
+    lcd.setBacklight(1);
 
     occupancy = create_occupancy_record(MAX_CAPACITY);
     if (occupancy == NULL) {
