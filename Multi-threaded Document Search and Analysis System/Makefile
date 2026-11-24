@@ -2,7 +2,7 @@ CC = gcc
 CFLAGS = -Wall -Wextra -std=c11 -pthread
 TARGET = document_analyzer
 SOURCES = main.c
-HEADERS = 
+HEADERS = analyzer.h
 
 all: $(TARGET)
 
