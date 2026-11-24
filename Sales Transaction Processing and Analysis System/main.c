@@ -401,6 +401,42 @@ void update_transaction(struct TransactionList *list)
     printf("Transaction %d updated. New total amount: %.2f\n", updated.id, updated.total);
 }
 
+// Asks a yes/no question. Returns 1 only if the user types y or Y.
+int ask_yes_no(const char *question)
+{
+    char buffer[INPUT_LENGTH];
+
+    read_line(question, buffer, INPUT_LENGTH);
+    return strcmp(buffer, "y") == 0 || strcmp(buffer, "Y") == 0;
+}
+
+// Menu option 4: removes a transaction and closes the gap it leaves in the list
+void delete_transaction(struct TransactionList *list)
+{
+    int deleted_id;
+    int i;
+    int index = ask_for_transaction(list);
+
+    if (index == -1) {
+        return;
+    }
+
+    print_table_header();
+    print_transaction(&list->items[index]);
+    if (!ask_yes_no("Are you sure you want to delete this transaction? (y/n): ")) {
+        printf("Delete cancelled.\n");
+        return;
+    }
+
+    deleted_id = list->items[index].id;
+    for (i = index; i < list->count - 1; i++) {
+        list->items[i] = list->items[i + 1];
+    }
+    list->count--;
+
+    printf("Transaction %d deleted.\n", deleted_id);
+}
+
 // Prints the main menu
 void show_menu(void)
 {
@@ -408,6 +444,7 @@ void show_menu(void)
     printf(" 1. Add New Transaction\n");
     printf(" 2. Display All Transactions\n");
     printf(" 3. Update Transaction\n");
+    printf(" 4. Delete Transaction\n");
     printf(" 0. Exit\n");
 }
 
@@ -445,6 +482,9 @@ int main(void)
                 break;
             case 3:
                 update_transaction(&list);
+                break;
+            case 4:
+                delete_transaction(&list);
                 break;
             case 0:
                 running = 0;
