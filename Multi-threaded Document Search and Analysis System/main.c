@@ -105,6 +105,31 @@ void initialize_thread_args(struct ThreadArgs *args, int thread_number, const ch
     make_report_name(args->filename, args->report_name, REPORT_NAME_LENGTH);
 }
 
+// Marks a file as failed when its report would clash with another file:
+// two threads writing one report, or one thread reading a report another thread is writing
+void check_report_conflicts(struct ThreadArgs *thread_args, int file_count)
+{
+    int i;
+    int j;
+
+    for (i = 0; i < file_count; i++) {
+        for (j = 0; j < file_count; j++) {
+            if (i == j || thread_args[i].status != STATUS_PENDING) {
+                continue;
+            }
+            if (j < i && strcmp(thread_args[i].report_name, thread_args[j].report_name) == 0) {
+                snprintf(thread_args[i].error_message, ERROR_LENGTH, "its report %s would overwrite the report of file %d",
+                         thread_args[i].report_name, j + 1);
+                thread_args[i].status = STATUS_FAILED;
+            } else if (strcmp(thread_args[i].filename, thread_args[j].report_name) == 0) {
+                snprintf(thread_args[i].error_message, ERROR_LENGTH, "it is the report file that file %d is writing",
+                         j + 1);
+                thread_args[i].status = STATUS_FAILED;
+            }
+        }
+    }
+}
+
 // Reads one whole line of any length into a buffer that grows with realloc.
 // Returns 1 if a line was read, 0 at the end of the file, -1 if memory ran out.
 int read_whole_line(FILE *file, char **buffer, int *capacity)
@@ -418,6 +443,7 @@ int main(int argc, char *argv[])
     for (i = 0; i < file_count; i++) {
         initialize_thread_args(&thread_args[i], i + 1, argv[i + 2], keyword);
     }
+    check_report_conflicts(thread_args, file_count);
 
     for (i = 0; i < file_count; i++) {
         if (thread_args[i].status != STATUS_PENDING) {
