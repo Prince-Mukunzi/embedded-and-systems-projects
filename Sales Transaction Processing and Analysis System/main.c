@@ -11,7 +11,7 @@
 #define INPUT_LENGTH 100
 #define INITIAL_CAPACITY 4
 #define MAX_QUANTITY 1000000
-#define MAX_PRICE 1000000.0f
+#define MAX_PRICE 1000000.0
 #define MIN_YEAR 2000
 #define MAX_YEAR 2100
 #define OPERATION_COUNT 5
@@ -20,8 +20,8 @@ struct Transaction {
     int id;
     char product[PRODUCT_LENGTH];
     int quantity;
-    float unit_price;
-    float total;
+    double unit_price;
+    double total;
     char date[DATE_LENGTH];
 };
 
@@ -32,7 +32,7 @@ struct TransactionList {
 };
 
 struct FilterCriteria {
-    float amount;
+    double amount;
     char product[PRODUCT_LENGTH];
 };
 
@@ -88,7 +88,7 @@ int read_int(const char *prompt, int *value)
 }
 
 // Converts text to a decimal number. Returns 1 only if the whole text is a valid number.
-int parse_float(const char *text, float *value)
+int parse_double(const char *text, double *value)
 {
     char *end;
     double number;
@@ -103,17 +103,17 @@ int parse_float(const char *text, float *value)
         return 0;
     }
 
-    *value = (float) number;
+    *value = number;
     return 1;
 }
 
 // Asks for a decimal number. Returns 1 if the user typed a valid one.
-int read_float(const char *prompt, float *value)
+int read_double(const char *prompt, double *value)
 {
     char buffer[INPUT_LENGTH];
 
     read_line(prompt, buffer, INPUT_LENGTH);
-    return parse_float(buffer, value);
+    return parse_double(buffer, value);
 }
 
 // Returns 1 if the text has only spaces or tabs in it
@@ -240,10 +240,13 @@ int is_valid_quantity(int quantity)
     return quantity > 0 && quantity <= MAX_QUANTITY;
 }
 
-// Returns 1 if the unit price is above zero and within the limit
-int is_valid_price(float price)
+// Returns 1 if the unit price is above zero, within the limit, and has at most 2 decimal places
+int is_valid_price(double price)
 {
-    return price > 0 && price <= MAX_PRICE;
+    double cents = price * 100;
+
+    // A real price is a whole number of cents, so cents must be (almost exactly) a whole number
+    return price > 0 && price <= MAX_PRICE && fabs(cents - round(cents)) < 0.000001;
 }
 
 // Creates an empty list with room for a few transactions. Returns 0 if memory runs out.
@@ -317,8 +320,8 @@ void add_transaction(struct TransactionList *list)
         printf("Error: the quantity must be a whole number from 1 to %d.\n", MAX_QUANTITY);
         return;
     }
-    if (!read_float("Unit price: ", &new_transaction.unit_price) || !is_valid_price(new_transaction.unit_price)) {
-        printf("Error: the unit price must be a number above 0 and up to %.0f.\n", MAX_PRICE);
+    if (!read_double("Unit price: ", &new_transaction.unit_price) || !is_valid_price(new_transaction.unit_price)) {
+        printf("Error: the unit price must be above 0, up to %.0f, with at most 2 decimals.\n", MAX_PRICE);
         return;
     }
     if (!read_text("Transaction date (YYYY-MM-DD): ", new_transaction.date, DATE_LENGTH)
@@ -426,8 +429,8 @@ void update_transaction(struct TransactionList *list)
 
     snprintf(prompt, sizeof(prompt), "Unit price [%.2f]: ", updated.unit_price);
     read_line(prompt, buffer, INPUT_LENGTH);
-    if (buffer[0] != '\0' && (!parse_float(buffer, &updated.unit_price) || !is_valid_price(updated.unit_price))) {
-        printf("Error: the unit price must be a number above 0 and up to %.0f.\n", MAX_PRICE);
+    if (buffer[0] != '\0' && (!parse_double(buffer, &updated.unit_price) || !is_valid_price(updated.unit_price))) {
+        printf("Error: the unit price must be above 0, up to %.0f, with at most 2 decimals.\n", MAX_PRICE);
         return;
     }
 
@@ -483,9 +486,9 @@ void delete_transaction(struct TransactionList *list)
 }
 
 // Adds up the total amount of every transaction
-float calculate_total_revenue(const struct TransactionList *list)
+double calculate_total_revenue(const struct TransactionList *list)
 {
-    float revenue = 0.0f;
+    double revenue = 0.0;
     int i;
 
     for (i = 0; i < list->count; i++) {
@@ -495,11 +498,11 @@ float calculate_total_revenue(const struct TransactionList *list)
 }
 
 // Average amount per transaction, or 0 when there are no transactions
-float calculate_average_value(const struct TransactionList *list)
+double calculate_average_value(const struct TransactionList *list)
 {
     // Dividing by a count of zero is not allowed
     if (list->count == 0) {
-        return 0.0f;
+        return 0.0;
     }
     return calculate_total_revenue(list) / list->count;
 }
@@ -688,7 +691,7 @@ void filter_menu(const struct TransactionList *list)
     }
 
     if (option == 1) {
-        if (!read_float("Show transactions with a total above: ", &criteria.amount) || criteria.amount < 0) {
+        if (!read_double("Show transactions with a total above: ", &criteria.amount) || criteria.amount < 0) {
             printf("Error: the amount must be a number of 0 or more.\n");
             return;
         }
@@ -753,18 +756,18 @@ void search_by_product(const struct TransactionList *list)
 // Linear search: prints every transaction whose total amount equals the amount typed
 void search_by_amount(const struct TransactionList *list)
 {
-    float amount;
+    double amount;
     int found = 0;
     int i;
 
-    if (!read_float("Enter the transaction amount: ", &amount) || amount <= 0) {
+    if (!read_double("Enter the transaction amount: ", &amount) || amount <= 0) {
         printf("Error: the amount must be a number above 0.\n");
         return;
     }
 
     for (i = 0; i < list->count; i++) {
         // Decimal numbers are stored with tiny rounding errors, so "equal" means within half a cent
-        if (fabsf(list->items[i].total - amount) < 0.005f) {
+        if (fabs(list->items[i].total - amount) < 0.005) {
             if (found == 0) {
                 print_table_header();
             }
@@ -921,7 +924,7 @@ void sort_menu(struct TransactionList *list)
 void print_product_revenue(const struct TransactionList *list)
 {
     struct FilterCriteria criteria;
-    float revenue = 0.0f;
+    double revenue = 0.0;
     int sales = 0;
     int i;
 
