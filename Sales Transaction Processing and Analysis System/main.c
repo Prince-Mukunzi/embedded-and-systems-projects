@@ -294,11 +294,43 @@ void add_transaction(struct TransactionList *list)
     printf("Transaction %d added. Total amount: %.2f\n", new_transaction.id, new_transaction.total);
 }
 
+// Prints the column titles used by every transaction table
+void print_table_header(void)
+{
+    printf("%-8s %-30s %8s %12s %14s %-10s\n", "ID", "Product", "Quantity", "Unit price", "Total", "Date");
+    printf("-------------------------------------------------------------------------------------\n");
+}
+
+// Prints one transaction as a row of the table
+void print_transaction(const struct Transaction *transaction)
+{
+    printf("%-8d %-30s %8d %12.2f %14.2f %-10s\n", transaction->id, transaction->product,
+           transaction->quantity, transaction->unit_price, transaction->total, transaction->date);
+}
+
+// Menu option 2: prints every recorded transaction
+void display_all_transactions(const struct TransactionList *list)
+{
+    int i;
+
+    if (list->count == 0) {
+        printf("No transactions have been recorded yet.\n");
+        return;
+    }
+
+    print_table_header();
+    for (i = 0; i < list->count; i++) {
+        print_transaction(&list->items[i]);
+    }
+    printf("Total: %d transaction(s)\n", list->count);
+}
+
 // Prints the main menu
 void show_menu(void)
 {
     printf("\n===== SALES TRANSACTION MANAGEMENT SYSTEM =====\n");
     printf(" 1. Add New Transaction\n");
+    printf(" 2. Display All Transactions\n");
     printf(" 0. Exit\n");
 }
 
@@ -330,6 +362,9 @@ int main(void)
         switch (choice) {
             case 1:
                 add_transaction(&list);
+                break;
+            case 2:
+                display_all_transactions(&list);
                 break;
             case 0:
                 running = 0;
