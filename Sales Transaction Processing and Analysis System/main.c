@@ -31,6 +31,11 @@ struct TransactionList {
     int capacity;
 };
 
+struct FilterCriteria {
+    float amount;
+    char product[PRODUCT_LENGTH];
+};
+
 // Reads one line from the keyboard without the newline. Returns 0 when input has ended.
 int read_line(const char *prompt, char *buffer, int size)
 {
@@ -154,6 +159,34 @@ int read_text(const char *prompt, char *destination, int size)
 
     strcpy(destination, buffer);
     return 1;
+}
+
+// Copies text into destination with every letter in lowercase
+void to_lowercase(const char *source, char *destination, int size)
+{
+    int i;
+
+    for (i = 0; source[i] != '\0' && i < size - 1; i++) {
+        destination[i] = tolower((unsigned char) source[i]);
+    }
+    destination[i] = '\0';
+}
+
+// Like strcmp but ignores case: negative if first comes before second, 0 if equal, positive if after
+int compare_ignore_case(const char *first, const char *second)
+{
+    char first_lower[INPUT_LENGTH];
+    char second_lower[INPUT_LENGTH];
+
+    to_lowercase(first, first_lower, INPUT_LENGTH);
+    to_lowercase(second, second_lower, INPUT_LENGTH);
+    return strcmp(first_lower, second_lower);
+}
+
+// Returns 1 if two texts are the same when upper and lower case are ignored
+int same_text_ignore_case(const char *first, const char *second)
+{
+    return compare_ignore_case(first, second) == 0;
 }
 
 // Returns 1 for leap years, when February has 29 days
@@ -575,6 +608,96 @@ void process_sales_data(const struct TransactionList *list)
     selected_operation(list);
 }
 
+// Callback condition: the transaction total is above the chosen amount
+int is_above_amount(const struct Transaction *transaction, const struct FilterCriteria *criteria)
+{
+    return transaction->total > criteria->amount;
+}
+
+// Callback condition: the transaction is for the chosen product (case is ignored)
+int is_matching_product(const struct Transaction *transaction, const struct FilterCriteria *criteria)
+{
+    return same_text_ignore_case(transaction->product, criteria->product);
+}
+
+// Prints every transaction for which the condition callback returns 1
+void filter_transactions(const struct TransactionList *list,
+                         int (*condition)(const struct Transaction *, const struct FilterCriteria *),
+                         const struct FilterCriteria *criteria)
+{
+    int printed_header = 0;
+    int i;
+
+    for (i = 0; i < list->count; i++) {
+        if (condition(&list->items[i], criteria)) {
+            if (!printed_header) {
+                print_table_header();
+                printed_header = 1;
+            }
+            print_transaction(&list->items[i]);
+        }
+    }
+}
+
+// Counts the transactions for which the condition callback returns 1
+int count_matching(const struct TransactionList *list,
+                   int (*condition)(const struct Transaction *, const struct FilterCriteria *),
+                   const struct FilterCriteria *criteria)
+{
+    int count = 0;
+    int i;
+
+    for (i = 0; i < list->count; i++) {
+        if (condition(&list->items[i], criteria)) {
+            count++;
+        }
+    }
+    return count;
+}
+
+// Menu option 6: the chosen condition function is passed as a callback
+void filter_menu(const struct TransactionList *list)
+{
+    struct FilterCriteria criteria;
+    int (*condition)(const struct Transaction *, const struct FilterCriteria *);
+    int matches;
+    int option;
+
+    if (list->count == 0) {
+        printf("No transactions have been recorded yet.\n");
+        return;
+    }
+
+    printf("\n----- FILTER TRANSACTIONS -----\n");
+    printf("1. Transactions above a sales amount\n");
+    printf("2. Transactions for a product\n");
+    if (!read_int("Choose a filter: ", &option) || option < 1 || option > 2) {
+        printf("Error: please choose 1 or 2.\n");
+        return;
+    }
+
+    if (option == 1) {
+        if (!read_float("Show transactions with a total above: ", &criteria.amount) || criteria.amount < 0) {
+            printf("Error: the amount must be a number of 0 or more.\n");
+            return;
+        }
+        condition = is_above_amount;
+    } else {
+        if (!read_text("Product name: ", criteria.product, PRODUCT_LENGTH)) {
+            return;
+        }
+        condition = is_matching_product;
+    }
+
+    filter_transactions(list, condition, &criteria);
+    matches = count_matching(list, condition, &criteria);
+    if (matches == 0) {
+        printf("No transactions match this filter.\n");
+    } else {
+        printf("%d of %d transaction(s) match this filter.\n", matches, list->count);
+    }
+}
+
 // Prints the main menu
 void show_menu(void)
 {
@@ -584,6 +707,7 @@ void show_menu(void)
     printf(" 3. Update Transaction\n");
     printf(" 4. Delete Transaction\n");
     printf(" 5. Process Sales Data\n");
+    printf(" 6. Filter Transactions (Callbacks)\n");
     printf(" 0. Exit\n");
 }
 
@@ -627,6 +751,9 @@ int main(void)
                 break;
             case 5:
                 process_sales_data(&list);
+                break;
+            case 6:
+                filter_menu(&list);
                 break;
             case 0:
                 running = 0;
