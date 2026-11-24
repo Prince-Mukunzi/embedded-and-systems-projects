@@ -1,0 +1,5 @@
+document_analyzer
+*.o
+*.dSYM/
+*_report.txt
+!sample_reports/*_report.txt
