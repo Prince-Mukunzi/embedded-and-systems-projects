@@ -325,12 +325,89 @@ void display_all_transactions(const struct TransactionList *list)
     printf("Total: %d transaction(s)\n", list->count);
 }
 
+// Asks for a transaction ID and returns its position, or -1 with an error message
+int ask_for_transaction(const struct TransactionList *list)
+{
+    int id;
+    int index;
+
+    if (list->count == 0) {
+        printf("No transactions have been recorded yet.\n");
+        return -1;
+    }
+    if (!read_int("Enter the transaction ID: ", &id)) {
+        printf("Error: the transaction ID must be a whole number.\n");
+        return -1;
+    }
+
+    index = find_transaction_index(list, id);
+    if (index == -1) {
+        printf("Error: no transaction has ID %d.\n", id);
+    }
+    return index;
+}
+
+// Menu option 3: Enter keeps the current value of a field
+void update_transaction(struct TransactionList *list)
+{
+    struct Transaction updated;
+    char prompt[INPUT_LENGTH];
+    char buffer[INPUT_LENGTH];
+    int index = ask_for_transaction(list);
+
+    if (index == -1) {
+        return;
+    }
+
+    // Changes go into a copy first, so a mistake halfway through leaves the record unchanged
+    updated = list->items[index];
+    printf("Press Enter to keep the current value. The ID cannot be changed.\n");
+
+    snprintf(prompt, sizeof(prompt), "Product name [%s]: ", updated.product);
+    read_line(prompt, buffer, INPUT_LENGTH);
+    if (buffer[0] != '\0') {
+        if (!is_valid_text(buffer, PRODUCT_LENGTH)) {
+            return;
+        }
+        strcpy(updated.product, buffer);
+    }
+
+    snprintf(prompt, sizeof(prompt), "Quantity sold [%d]: ", updated.quantity);
+    read_line(prompt, buffer, INPUT_LENGTH);
+    if (buffer[0] != '\0' && (!parse_int(buffer, &updated.quantity) || !is_valid_quantity(updated.quantity))) {
+        printf("Error: the quantity must be a whole number from 1 to %d.\n", MAX_QUANTITY);
+        return;
+    }
+
+    snprintf(prompt, sizeof(prompt), "Unit price [%.2f]: ", updated.unit_price);
+    read_line(prompt, buffer, INPUT_LENGTH);
+    if (buffer[0] != '\0' && (!parse_float(buffer, &updated.unit_price) || !is_valid_price(updated.unit_price))) {
+        printf("Error: the unit price must be a number above 0 and up to %.0f.\n", MAX_PRICE);
+        return;
+    }
+
+    snprintf(prompt, sizeof(prompt), "Transaction date [%s]: ", updated.date);
+    read_line(prompt, buffer, INPUT_LENGTH);
+    if (buffer[0] != '\0') {
+        if (!is_valid_date(buffer)) {
+            printf("Error: the date must be a real date written as YYYY-MM-DD.\n");
+            return;
+        }
+        strcpy(updated.date, buffer);
+    }
+
+    updated.total = updated.quantity * updated.unit_price;
+    list->items[index] = updated;
+    printf("Transaction %d updated. New total amount: %.2f\n", updated.id, updated.total);
+}
+
 // Prints the main menu
 void show_menu(void)
 {
     printf("\n===== SALES TRANSACTION MANAGEMENT SYSTEM =====\n");
     printf(" 1. Add New Transaction\n");
     printf(" 2. Display All Transactions\n");
+    printf(" 3. Update Transaction\n");
     printf(" 0. Exit\n");
 }
 
@@ -365,6 +442,9 @@ int main(void)
                 break;
             case 2:
                 display_all_transactions(&list);
+                break;
+            case 3:
+                update_transaction(&list);
                 break;
             case 0:
                 running = 0;
