@@ -6,6 +6,9 @@
 #define RED_LED_PIN 10
 #define MAX_CAPACITY 5
 #define DEBOUNCE_DELAY 50
+#define LCD_UPDATE_INTERVAL 250
+#define LCD_COLUMNS 16
+#define LCD_ROWS 2
 #define SERIAL_BAUD_RATE 9600
 #define MESSAGE_LENGTH 64
 
@@ -26,7 +29,9 @@ struct Button {
     unsigned long last_change_time;
 };
 
+LiquidCrystal lcd(12, 11, 5, 4, 3, 2);
 struct OccupancyInfo *occupancy = NULL;
+unsigned long last_lcd_update = 0;
 struct Button entry_button = {ENTRY_BUTTON_PIN, HIGH, HIGH, 0};
 struct Button exit_button = {EXIT_BUTTON_PIN, HIGH, HIGH, 0};
 
@@ -149,6 +154,33 @@ void update_leds(const struct OccupancyInfo *info)
     }
 }
 
+// Writes one full LCD row. The text is padded with spaces so old characters are overwritten,
+// which avoids the flicker that lcd.clear() causes on every refresh.
+void print_lcd_row(int row, const char *text)
+{
+    char padded[LCD_COLUMNS + 1];
+
+    snprintf(padded, LCD_COLUMNS + 1, "%-16s", text);
+    lcd.setCursor(0, row);
+    lcd.print(padded);
+}
+
+// Shows the number of people inside and the places left
+void update_lcd(const struct OccupancyInfo *info)
+{
+    char line[LCD_COLUMNS + 1];
+
+    snprintf(line, LCD_COLUMNS + 1, "Inside: %d/%d", info->current_count, info->max_capacity);
+    print_lcd_row(0, line);
+
+    if (remaining_capacity(info) == 0) {
+        print_lcd_row(1, "FULL - No entry");
+    } else {
+        snprintf(line, LCD_COLUMNS + 1, "Available: %d", remaining_capacity(info));
+        print_lcd_row(1, line);
+    }
+}
+
 void setup()
 {
     Serial.begin(SERIAL_BAUD_RATE);
@@ -156,17 +188,21 @@ void setup()
     pinMode(EXIT_BUTTON_PIN, INPUT_PULLUP);
     pinMode(GREEN_LED_PIN, OUTPUT);
     pinMode(RED_LED_PIN, OUTPUT);
+    lcd.begin(LCD_COLUMNS, LCD_ROWS);
 
     occupancy = create_occupancy_record(MAX_CAPACITY);
     if (occupancy == NULL) {
         Serial.println("ERROR: not enough memory for the occupancy record. System stopped.");
         digitalWrite(RED_LED_PIN, HIGH);
+        print_lcd_row(0, "Memory error");
+        print_lcd_row(1, "System stopped");
         return;
     }
 
     Serial.println("Smart Occupancy Monitoring System started.");
     print_statistics(occupancy);
     update_leds(occupancy);
+    update_lcd(occupancy);
 }
 
 void loop()
@@ -183,5 +219,11 @@ void loop()
     if (button_was_pressed(&exit_button)) {
         record_exit(occupancy);
         update_leds(occupancy);
+    }
+
+    // millis() keeps the LCD refreshing without delay(), so button presses are never missed
+    if (millis() - last_lcd_update >= LCD_UPDATE_INTERVAL) {
+        last_lcd_update = millis();
+        update_lcd(occupancy);
     }
 }
