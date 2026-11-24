@@ -2,7 +2,7 @@ CC = gcc
 CFLAGS = -Wall -Wextra -std=c11
 TARGET = sales
 SOURCES = main.c
-HEADERS = 
+HEADERS = sales.h
 
 all: $(TARGET)
 
