@@ -1,0 +1,23 @@
+========== SALES REPORT ==========
+Total number of transactions : 10
+Total revenue                : 6089.29
+Average transaction value    : 608.93
+Highest transaction value    : 2550.00 (ID 201, Laptop)
+Lowest transaction value     : 135.00 (ID 210, Keyboard)
+Total quantity sold          : 97
+==================================
+Enter a product name to see its revenue: Laptop
+Revenue for selected product : 3400.00 (Laptop, 2 transaction(s))
+
+----- PROCESS SALES DATA (each operation called through the function pointer array) -----
+Total revenue: 6089.29
+Average transaction value: 608.93
+Highest-value transaction:
+ID       Product                        Quantity   Unit price          Total Date      
+-------------------------------------------------------------------------------------
+201      Laptop                                3       850.00        2550.00 2026-10-01
+Lowest-value transaction:
+ID       Product                        Quantity   Unit price          Total Date      
+-------------------------------------------------------------------------------------
+210      Keyboard                              3        45.00         135.00 2026-10-28
+Total units sold: 97
