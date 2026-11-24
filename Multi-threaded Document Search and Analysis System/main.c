@@ -7,7 +7,7 @@
 #define MAX_KEYWORD 100
 #define MAX_FILENAME 256
 #define REPORT_NAME_LENGTH 300
-#define ERROR_LENGTH 100
+#define ERROR_LENGTH 400
 #define START_LINE_CAPACITY 128
 #define START_MATCH_CAPACITY 8
 #define STATUS_PENDING 0
@@ -267,13 +267,69 @@ void analyze_file(struct ThreadArgs *args)
     fclose(file);
 }
 
+// Writes the results for one file into its own report file
+void generate_report(struct ThreadArgs *args)
+{
+    FILE *report;
+    int i;
+    int write_failed;
+
+    report = fopen(args->report_name, "w");
+    if (report == NULL) {
+        // Keep the first error if the analysis had already failed
+        if (args->status != STATUS_FAILED) {
+            snprintf(args->error_message, ERROR_LENGTH, "the report file %s could not be created", args->report_name);
+            args->status = STATUS_FAILED;
+        }
+        return;
+    }
+
+    fprintf(report, "===== DOCUMENT ANALYSIS REPORT =====\n");
+    fprintf(report, "Input file            : %s\n", args->filename);
+    fprintf(report, "Search keyword        : %s\n", args->keyword);
+    fprintf(report, "Total lines processed : %d\n", args->total_lines);
+    fprintf(report, "Keyword occurrences   : %d\n", args->occurrences);
+    fprintf(report, "Matching lines        : %d\n", args->matching_lines);
+
+    fprintf(report, "Line numbers          : ");
+    if (args->matching_lines == 0) {
+        fprintf(report, "none");
+    }
+    for (i = 0; i < args->matching_lines; i++) {
+        if (i > 0) {
+            fprintf(report, ", ");
+        }
+        fprintf(report, "%d", args->line_numbers[i]);
+    }
+    fprintf(report, "\n");
+
+    if (args->status == STATUS_FAILED) {
+        fprintf(report, "Status                : Failed (%s)\n", args->error_message);
+    } else {
+        fprintf(report, "Status                : Success\n");
+    }
+
+    // ferror is checked before fclose so a full disk is not reported as success
+    write_failed = ferror(report);
+    if (fclose(report) != 0) {
+        write_failed = 1;
+    }
+    if (write_failed) {
+        if (args->status != STATUS_FAILED) {
+            snprintf(args->error_message, ERROR_LENGTH, "the report file %s could not be written", args->report_name);
+            args->status = STATUS_FAILED;
+        }
+        return;
+    }
+    args->report_written = 1;
+}
+
 int main(int argc, char *argv[])
 {
     const char *keyword;
     int file_count;
     struct ThreadArgs *thread_args;
     int i;
-    int j;
 
     if (argc < 3) {
         printf("Error: please give a search keyword and at least one file.\n");
@@ -303,15 +359,11 @@ int main(int argc, char *argv[])
         initialize_thread_args(&thread_args[i], i + 1, argv[i + 2], keyword);
         if (thread_args[i].status == STATUS_PENDING) {
             analyze_file(&thread_args[i]);
+            generate_report(&thread_args[i]);
         }
-        printf("[Thread %d] %s: %d lines, %d occurrences, %d matching lines, status %d %s\n",
-               thread_args[i].thread_number, thread_args[i].filename, thread_args[i].total_lines,
-               thread_args[i].occurrences, thread_args[i].matching_lines, thread_args[i].status,
+        printf("[Thread %d] %s: status %d, report written %d %s\n", thread_args[i].thread_number,
+               thread_args[i].filename, thread_args[i].status, thread_args[i].report_written,
                thread_args[i].error_message);
-        for (j = 0; j < thread_args[i].matching_lines; j++) {
-            printf(" %d", thread_args[i].line_numbers[j]);
-        }
-        printf("\n");
         free(thread_args[i].line_numbers);
     }
 
