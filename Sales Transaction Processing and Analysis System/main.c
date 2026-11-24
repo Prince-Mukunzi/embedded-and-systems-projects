@@ -4,6 +4,7 @@
 #include <ctype.h>
 #include <limits.h>
 #include <math.h>
+#include <errno.h>
 
 #define DATA_FILE "transactions.txt"
 #define PRODUCT_LENGTH 50
@@ -15,6 +16,7 @@
 #define MIN_YEAR 2000
 #define MAX_YEAR 2100
 #define OPERATION_COUNT 5
+#define FILE_LINE_LENGTH 256
 
 struct Transaction {
     int id;
@@ -1005,6 +1007,103 @@ int save_transactions(const struct TransactionList *list, const char *filename)
     return 1;
 }
 
+// Reads the next line of the file and counts it. Returns 0 when the file has ended.
+int read_file_line(FILE *file, char *line, int *line_number)
+{
+    if (fgets(line, FILE_LINE_LENGTH, file) == NULL) {
+        return 0;
+    }
+    (*line_number)++;
+    return 1;
+}
+
+// Fills a transaction from one saved line. Returns 1 only if every value is present and valid.
+int parse_transaction_line(const char *line, struct Transaction *transaction)
+{
+    int fields = sscanf(line, "%d|%49[^|]|%d|%lf|%lf|%10[^\n]", &transaction->id, transaction->product,
+                        &transaction->quantity, &transaction->unit_price, &transaction->total, transaction->date);
+
+    if (fields != 6) {
+        return 0;
+    }
+
+    // The saved total must match quantity times price, which catches a wrongly edited file
+    return transaction->id > 0 && is_valid_quantity(transaction->quantity) && is_valid_price(transaction->unit_price)
+           && is_valid_date(transaction->date)
+           && fabs(transaction->total - transaction->quantity * transaction->unit_price) < 0.005;
+}
+
+// Reads the file into a new list. The current list is replaced only if everything loads correctly.
+int load_transactions(struct TransactionList *list, const char *filename)
+{
+    FILE *file;
+    struct TransactionList loaded;
+    struct Transaction transaction;
+    char line[FILE_LINE_LENGTH];
+    int line_number = 0;
+    int total = 0;
+    int ok = 1;
+    int i;
+
+    file = fopen(filename, "r");
+    if (file == NULL) {
+        if (errno == ENOENT) {
+            printf("No saved transactions found in %s.\n", filename);
+            return 1;
+        }
+        printf("Error: %s exists but could not be opened.\n", filename);
+        return 0;
+    }
+
+    if (!create_list(&loaded)) {
+        printf("Error: not enough memory to load the transactions.\n");
+        fclose(file);
+        return 0;
+    }
+
+    if (!read_file_line(file, line, &line_number) || sscanf(line, "%d", &total) != 1 || total < 0) {
+        ok = 0;
+    }
+
+    for (i = 0; ok && i < total; i++) {
+        if (!read_file_line(file, line, &line_number) || !parse_transaction_line(line, &transaction)) {
+            ok = 0;
+        } else if (find_transaction_index(&loaded, transaction.id) != -1) {
+            printf("Error: transaction ID %d appears twice in the file.\n", transaction.id);
+            ok = 0;
+        } else if (loaded.count == loaded.capacity && !grow_list(&loaded)) {
+            printf("Error: not enough memory to load the transactions.\n");
+            ok = 0;
+        } else {
+            loaded.items[loaded.count] = transaction;
+            loaded.count++;
+        }
+    }
+    fclose(file);
+
+    if (!ok) {
+        printf("Error: %s could not be loaded (problem near line %d).\n", filename, line_number);
+        free_list(&loaded);
+        return 0;
+    }
+
+    free_list(list);
+    *list = loaded;
+    printf("%d transaction(s) loaded from %s.\n", list->count, filename);
+    return 1;
+}
+
+// Menu option 11: reloads the saved file, after warning that it replaces what is in memory
+void load_menu(struct TransactionList *list)
+{
+    if (list->count > 0
+        && !ask_yes_no("Loading replaces the transactions in memory. Unsaved changes will be lost. Continue? (y/n): ")) {
+        printf("Load cancelled.\n");
+        return;
+    }
+    load_transactions(list, DATA_FILE);
+}
+
 // Prints the main menu
 void show_menu(void)
 {
@@ -1019,6 +1118,7 @@ void show_menu(void)
     printf(" 8. Sort Transactions\n");
     printf(" 9. Generate Sales Report\n");
     printf("10. Save Transactions\n");
+    printf("11. Load Transactions\n");
     printf(" 0. Exit\n");
 }
 
@@ -1031,6 +1131,13 @@ int main(void)
 
     if (!create_list(&list)) {
         printf("Error: not enough memory to start the program.\n");
+        return 1;
+    }
+
+    // Stopping here protects the file: saving an empty list on exit would overwrite it
+    if (!load_transactions(&list, DATA_FILE)) {
+        printf("Fix or move %s, then start the program again.\n", DATA_FILE);
+        free_list(&list);
         return 1;
     }
 
@@ -1078,6 +1185,9 @@ int main(void)
                 break;
             case 10:
                 save_transactions(&list, DATA_FILE);
+                break;
+            case 11:
+                load_menu(&list);
                 break;
             case 0:
                 if (save_transactions(&list, DATA_FILE)
