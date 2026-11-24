@@ -278,11 +278,11 @@ void analyze_file(struct ThreadArgs *args)
         }
     }
 
-    // A directory or a disk problem shows up as a read error, not as an open error
     if (result == -1 || out_of_memory) {
         snprintf(args->error_message, ERROR_LENGTH, "not enough memory to read a line");
         args->status = STATUS_FAILED;
     } else if (ferror(file)) {
+        // A directory or a disk problem shows up here as a read error, not as an open error
         snprintf(args->error_message, ERROR_LENGTH, "the file could not be read");
         args->status = STATUS_FAILED;
     } else {
