@@ -969,6 +969,39 @@ void generate_sales_report(const struct TransactionList *list)
     print_product_revenue(list);
 }
 
+// Writes every transaction to a text file. Returns 1 on success.
+int save_transactions(const struct TransactionList *list, const char *filename)
+{
+    FILE *file;
+    const struct Transaction *transaction;
+    int write_failed;
+    int i;
+
+    file = fopen(filename, "w");
+    if (file == NULL) {
+        printf("Error: could not open %s for writing.\n", filename);
+        return 0;
+    }
+
+    // Line 1 is the number of transactions, then one line per transaction
+    fprintf(file, "%d\n", list->count);
+    for (i = 0; i < list->count; i++) {
+        transaction = &list->items[i];
+        fprintf(file, "%d|%s|%d|%.2f|%.2f|%s\n", transaction->id, transaction->product, transaction->quantity,
+                transaction->unit_price, transaction->total, transaction->date);
+    }
+
+    // fclose also writes out anything still waiting in memory, so its result must be checked
+    write_failed = ferror(file);
+    if (fclose(file) != 0 || write_failed) {
+        printf("Error: something went wrong while writing %s.\n", filename);
+        return 0;
+    }
+
+    printf("%d transaction(s) saved to %s.\n", list->count, filename);
+    return 1;
+}
+
 // Prints the main menu
 void show_menu(void)
 {
@@ -982,6 +1015,7 @@ void show_menu(void)
     printf(" 7. Search Transactions\n");
     printf(" 8. Sort Transactions\n");
     printf(" 9. Generate Sales Report\n");
+    printf("10. Save Transactions\n");
     printf(" 0. Exit\n");
 }
 
@@ -1001,7 +1035,8 @@ int main(void)
         show_menu();
 
         if (!read_line("Choose an option: ", input, INPUT_LENGTH)) {
-            printf("\n");
+            printf("\nInput ended. Saving before closing.\n");
+            save_transactions(&list, DATA_FILE);
             break;
         }
 
@@ -1038,8 +1073,14 @@ int main(void)
             case 9:
                 generate_sales_report(&list);
                 break;
+            case 10:
+                save_transactions(&list, DATA_FILE);
+                break;
             case 0:
-                running = 0;
+                if (save_transactions(&list, DATA_FILE)
+                    || ask_yes_no("Saving failed. Exit without saving? (y/n): ")) {
+                    running = 0;
+                }
                 break;
             default:
                 printf("Error: %d is not a menu option.\n", choice);
