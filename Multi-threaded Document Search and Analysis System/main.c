@@ -3,6 +3,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <errno.h>
+#include <pthread.h>
 
 #define MAX_KEYWORD 100
 #define MAX_FILENAME 256
@@ -324,11 +325,32 @@ void generate_report(struct ThreadArgs *args)
     args->report_written = 1;
 }
 
+// The thread function: each thread analyses one file and writes its report.
+// Threads share nothing, because each one only touches its own ThreadArgs, so no mutex is needed.
+void *process_file(void *arg)
+{
+    struct ThreadArgs *args = (struct ThreadArgs *) arg;
+
+    printf("[Thread %d] Processing %s ...\n", args->thread_number, args->filename);
+
+    analyze_file(args);
+    generate_report(args);
+
+    if (args->status == STATUS_COMPLETED) {
+        printf("[Thread %d] Successfully processed %s\n", args->thread_number, args->filename);
+    } else {
+        printf("[Thread %d] Error processing %s: %s\n", args->thread_number, args->filename, args->error_message);
+    }
+    return NULL;
+}
+
 int main(int argc, char *argv[])
 {
     const char *keyword;
     int file_count;
     struct ThreadArgs *thread_args;
+    pthread_t *threads;
+    int *thread_created;
     int i;
 
     if (argc < 3) {
@@ -350,23 +372,45 @@ int main(int argc, char *argv[])
     printf("Number of Input Files: %d\n\n", file_count);
 
     thread_args = calloc(file_count, sizeof(struct ThreadArgs));
-    if (thread_args == NULL) {
+    threads = calloc(file_count, sizeof(pthread_t));
+    thread_created = calloc(file_count, sizeof(int));
+    if (thread_args == NULL || threads == NULL || thread_created == NULL) {
         printf("Error: not enough memory to start the analysis.\n");
+        free(thread_args);
+        free(threads);
+        free(thread_created);
         return 1;
     }
 
     for (i = 0; i < file_count; i++) {
         initialize_thread_args(&thread_args[i], i + 1, argv[i + 2], keyword);
-        if (thread_args[i].status == STATUS_PENDING) {
-            analyze_file(&thread_args[i]);
-            generate_report(&thread_args[i]);
-        }
-        printf("[Thread %d] %s: status %d, report written %d %s\n", thread_args[i].thread_number,
-               thread_args[i].filename, thread_args[i].status, thread_args[i].report_written,
-               thread_args[i].error_message);
-        free(thread_args[i].line_numbers);
     }
 
+    for (i = 0; i < file_count; i++) {
+        if (thread_args[i].status != STATUS_PENDING) {
+            printf("[Thread %d] Error: %s was skipped: %s\n", i + 1, thread_args[i].filename,
+                   thread_args[i].error_message);
+        } else if (pthread_create(&threads[i], NULL, process_file, &thread_args[i]) != 0) {
+            snprintf(thread_args[i].error_message, ERROR_LENGTH, "the thread could not be created");
+            thread_args[i].status = STATUS_FAILED;
+            printf("[Thread %d] Error: could not create a thread for %s\n", i + 1, thread_args[i].filename);
+        } else {
+            thread_created[i] = 1;
+        }
+    }
+
+    // Joining a thread that was never created is not allowed, so only created ones are joined
+    for (i = 0; i < file_count; i++) {
+        if (thread_created[i]) {
+            pthread_join(threads[i], NULL);
+        }
+    }
+
+    for (i = 0; i < file_count; i++) {
+        free(thread_args[i].line_numbers);
+    }
     free(thread_args);
+    free(threads);
+    free(thread_created);
     return 0;
 }
