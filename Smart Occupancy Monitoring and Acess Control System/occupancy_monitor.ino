@@ -2,6 +2,8 @@
 
 #define ENTRY_BUTTON_PIN 6
 #define EXIT_BUTTON_PIN 7
+#define GREEN_LED_PIN 9
+#define RED_LED_PIN 10
 #define MAX_CAPACITY 5
 #define DEBOUNCE_DELAY 50
 #define SERIAL_BAUD_RATE 9600
@@ -135,20 +137,36 @@ void record_exit(struct OccupancyInfo *info)
     Serial.println(message);
 }
 
+// Green means there is room, red means the facility is full
+void update_leds(const struct OccupancyInfo *info)
+{
+    if (info->current_count >= info->max_capacity) {
+        digitalWrite(GREEN_LED_PIN, LOW);
+        digitalWrite(RED_LED_PIN, HIGH);
+    } else {
+        digitalWrite(GREEN_LED_PIN, HIGH);
+        digitalWrite(RED_LED_PIN, LOW);
+    }
+}
+
 void setup()
 {
     Serial.begin(SERIAL_BAUD_RATE);
     pinMode(ENTRY_BUTTON_PIN, INPUT_PULLUP);
     pinMode(EXIT_BUTTON_PIN, INPUT_PULLUP);
+    pinMode(GREEN_LED_PIN, OUTPUT);
+    pinMode(RED_LED_PIN, OUTPUT);
 
     occupancy = create_occupancy_record(MAX_CAPACITY);
     if (occupancy == NULL) {
         Serial.println("ERROR: not enough memory for the occupancy record. System stopped.");
+        digitalWrite(RED_LED_PIN, HIGH);
         return;
     }
 
     Serial.println("Smart Occupancy Monitoring System started.");
     print_statistics(occupancy);
+    update_leds(occupancy);
 }
 
 void loop()
@@ -160,8 +178,10 @@ void loop()
 
     if (button_was_pressed(&entry_button)) {
         record_entry(occupancy);
+        update_leds(occupancy);
     }
     if (button_was_pressed(&exit_button)) {
         record_exit(occupancy);
+        update_leds(occupancy);
     }
 }
