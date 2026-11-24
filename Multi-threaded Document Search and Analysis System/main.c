@@ -2,11 +2,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <errno.h>
 
 #define MAX_KEYWORD 100
 #define MAX_FILENAME 256
 #define REPORT_NAME_LENGTH 300
 #define ERROR_LENGTH 100
+#define START_LINE_CAPACITY 128
 #define STATUS_PENDING 0
 #define STATUS_COMPLETED 1
 #define STATUS_FAILED 2
@@ -101,6 +103,97 @@ void initialize_thread_args(struct ThreadArgs *args, int thread_number, const ch
     make_report_name(args->filename, args->report_name, REPORT_NAME_LENGTH);
 }
 
+// Reads one whole line of any length into a buffer that grows with realloc.
+// Returns 1 if a line was read, 0 at the end of the file, -1 if memory ran out.
+int read_whole_line(FILE *file, char **buffer, int *capacity)
+{
+    char *resized;
+    int length = 0;
+    int character = fgetc(file);
+
+    if (character == EOF) {
+        return 0;
+    }
+
+    while (character != EOF && character != '\n') {
+        // Keep one free place for the '\0' at the end
+        if (length + 1 >= *capacity) {
+            resized = realloc(*buffer, *capacity * 2);
+            if (resized == NULL) {
+                return -1;
+            }
+            *buffer = resized;
+            *capacity = *capacity * 2;
+        }
+        (*buffer)[length] = (char) character;
+        length++;
+        character = fgetc(file);
+    }
+
+    (*buffer)[length] = '\0';
+    return 1;
+}
+
+// Opens the file and explains in error_message why it could not be opened
+FILE *open_input_file(struct ThreadArgs *args)
+{
+    FILE *file = fopen(args->filename, "r");
+
+    if (file == NULL) {
+        if (errno == ENOENT) {
+            snprintf(args->error_message, ERROR_LENGTH, "the file does not exist");
+        } else if (errno == EACCES) {
+            snprintf(args->error_message, ERROR_LENGTH, "permission denied");
+        } else {
+            snprintf(args->error_message, ERROR_LENGTH, "the file could not be opened");
+        }
+        args->status = STATUS_FAILED;
+    }
+    return file;
+}
+
+// Goes through the file line by line and fills in the results in args
+void analyze_file(struct ThreadArgs *args)
+{
+    FILE *file;
+    char *line;
+    int line_capacity = START_LINE_CAPACITY;
+    int result;
+
+    file = open_input_file(args);
+    if (file == NULL) {
+        return;
+    }
+
+    line = malloc(line_capacity);
+    if (line == NULL) {
+        snprintf(args->error_message, ERROR_LENGTH, "not enough memory");
+        args->status = STATUS_FAILED;
+        fclose(file);
+        return;
+    }
+
+    result = read_whole_line(file, &line, &line_capacity);
+    while (result == 1) {
+        args->total_lines++;
+        result = read_whole_line(file, &line, &line_capacity);
+    }
+
+    // A directory or a disk problem shows up as a read error, not as an open error
+    if (result == -1) {
+        snprintf(args->error_message, ERROR_LENGTH, "not enough memory to read a line");
+        args->status = STATUS_FAILED;
+    } else if (ferror(file)) {
+        snprintf(args->error_message, ERROR_LENGTH, "the file could not be read");
+        args->status = STATUS_FAILED;
+    } else {
+        args->status = STATUS_COMPLETED;
+    }
+
+    free(line);
+    fclose(file);
+}
+
 int main(int argc, char *argv[])
 {
     const char *keyword;
@@ -134,8 +227,11 @@ int main(int argc, char *argv[])
 
     for (i = 0; i < file_count; i++) {
         initialize_thread_args(&thread_args[i], i + 1, argv[i + 2], keyword);
-        printf("[Thread %d] %s -> %s %s\n", thread_args[i].thread_number, thread_args[i].filename,
-               thread_args[i].report_name, thread_args[i].error_message);
+        if (thread_args[i].status == STATUS_PENDING) {
+            analyze_file(&thread_args[i]);
+        }
+        printf("[Thread %d] %s: %d lines, status %d %s\n", thread_args[i].thread_number, thread_args[i].filename,
+               thread_args[i].total_lines, thread_args[i].status, thread_args[i].error_message);
     }
 
     free(thread_args);
