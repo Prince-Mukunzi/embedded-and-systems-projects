@@ -917,6 +917,58 @@ void sort_menu(struct TransactionList *list)
     display_all_transactions(list);
 }
 
+// Prints the revenue and number of sales for the product the user types
+void print_product_revenue(const struct TransactionList *list)
+{
+    struct FilterCriteria criteria;
+    float revenue = 0.0f;
+    int sales = 0;
+    int i;
+
+    if (!read_text("Enter a product name to see its revenue: ", criteria.product, PRODUCT_LENGTH)) {
+        return;
+    }
+
+    for (i = 0; i < list->count; i++) {
+        if (is_matching_product(&list->items[i], &criteria)) {
+            revenue += list->items[i].total;
+            sales++;
+        }
+    }
+
+    if (sales == 0) {
+        printf("No transactions found for '%s'.\n", criteria.product);
+    } else {
+        printf("Revenue for selected product : %.2f (%s, %d transaction(s))\n", revenue, criteria.product, sales);
+    }
+}
+
+// Menu option 9
+void generate_sales_report(const struct TransactionList *list)
+{
+    const struct Transaction *highest;
+    const struct Transaction *lowest;
+
+    if (list->count == 0) {
+        printf("No transactions have been recorded yet, so there is nothing to report.\n");
+        return;
+    }
+
+    highest = &list->items[find_highest_index(list)];
+    lowest = &list->items[find_lowest_index(list)];
+
+    printf("\n========== SALES REPORT ==========\n");
+    printf("Total number of transactions : %d\n", list->count);
+    printf("Total revenue                : %.2f\n", calculate_total_revenue(list));
+    printf("Average transaction value    : %.2f\n", calculate_average_value(list));
+    printf("Highest transaction value    : %.2f (ID %d, %s)\n", highest->total, highest->id, highest->product);
+    printf("Lowest transaction value     : %.2f (ID %d, %s)\n", lowest->total, lowest->id, lowest->product);
+    printf("Total quantity sold          : %d\n", calculate_total_units(list));
+    printf("==================================\n");
+
+    print_product_revenue(list);
+}
+
 // Prints the main menu
 void show_menu(void)
 {
@@ -929,6 +981,7 @@ void show_menu(void)
     printf(" 6. Filter Transactions (Callbacks)\n");
     printf(" 7. Search Transactions\n");
     printf(" 8. Sort Transactions\n");
+    printf(" 9. Generate Sales Report\n");
     printf(" 0. Exit\n");
 }
 
@@ -981,6 +1034,9 @@ int main(void)
                 break;
             case 8:
                 sort_menu(&list);
+                break;
+            case 9:
+                generate_sales_report(&list);
                 break;
             case 0:
                 running = 0;
