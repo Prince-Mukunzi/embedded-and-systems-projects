@@ -9,6 +9,7 @@
 #define REPORT_NAME_LENGTH 300
 #define ERROR_LENGTH 100
 #define START_LINE_CAPACITY 128
+#define START_MATCH_CAPACITY 8
 #define STATUS_PENDING 0
 #define STATUS_COMPLETED 1
 #define STATUS_FAILED 2
@@ -134,6 +135,61 @@ int read_whole_line(FILE *file, char **buffer, int *capacity)
     return 1;
 }
 
+// Changes every letter of the text to lowercase, in place
+void to_lowercase(char *text)
+{
+    int i;
+
+    for (i = 0; text[i] != '\0'; i++) {
+        text[i] = (char) tolower((unsigned char) text[i]);
+    }
+}
+
+// Counts how many times the keyword appears in the line. Both must already be lowercase.
+int count_occurrences(const char *line, const char *keyword)
+{
+    int line_length = strlen(line);
+    int keyword_length = strlen(keyword);
+    int count = 0;
+    int i = 0;
+
+    while (i + keyword_length <= line_length) {
+        if (strncmp(&line[i], keyword, keyword_length) == 0) {
+            count++;
+            // Jump past this match so the same letters are not counted twice
+            i = i + keyword_length;
+        } else {
+            i++;
+        }
+    }
+    return count;
+}
+
+// Adds a line number to the list of matching lines, growing the list with realloc when it is full
+int record_matching_line(struct ThreadArgs *args, int line_number)
+{
+    int *resized;
+    int new_capacity;
+
+    if (args->matching_lines == args->line_capacity) {
+        new_capacity = args->line_capacity * 2;
+        if (new_capacity == 0) {
+            new_capacity = START_MATCH_CAPACITY;
+        }
+        // realloc with a NULL pointer works like malloc, so the first call needs no special case
+        resized = realloc(args->line_numbers, new_capacity * sizeof(int));
+        if (resized == NULL) {
+            return 0;
+        }
+        args->line_numbers = resized;
+        args->line_capacity = new_capacity;
+    }
+
+    args->line_numbers[args->matching_lines] = line_number;
+    args->matching_lines++;
+    return 1;
+}
+
 // Opens the file and explains in error_message why it could not be opened
 FILE *open_input_file(struct ThreadArgs *args)
 {
@@ -157,8 +213,11 @@ void analyze_file(struct ThreadArgs *args)
 {
     FILE *file;
     char *line;
+    char keyword[MAX_KEYWORD];
     int line_capacity = START_LINE_CAPACITY;
     int result;
+    int count;
+    int out_of_memory = 0;
 
     file = open_input_file(args);
     if (file == NULL) {
@@ -173,14 +232,28 @@ void analyze_file(struct ThreadArgs *args)
         return;
     }
 
+    // Lowercasing both sides makes "IoT", "iot" and "IOT" all match
+    strcpy(keyword, args->keyword);
+    to_lowercase(keyword);
+
     result = read_whole_line(file, &line, &line_capacity);
-    while (result == 1) {
+    while (result == 1 && !out_of_memory) {
         args->total_lines++;
-        result = read_whole_line(file, &line, &line_capacity);
+        to_lowercase(line);
+        count = count_occurrences(line, keyword);
+        if (count > 0) {
+            args->occurrences = args->occurrences + count;
+            if (!record_matching_line(args, args->total_lines)) {
+                out_of_memory = 1;
+            }
+        }
+        if (!out_of_memory) {
+            result = read_whole_line(file, &line, &line_capacity);
+        }
     }
 
     // A directory or a disk problem shows up as a read error, not as an open error
-    if (result == -1) {
+    if (result == -1 || out_of_memory) {
         snprintf(args->error_message, ERROR_LENGTH, "not enough memory to read a line");
         args->status = STATUS_FAILED;
     } else if (ferror(file)) {
@@ -200,6 +273,7 @@ int main(int argc, char *argv[])
     int file_count;
     struct ThreadArgs *thread_args;
     int i;
+    int j;
 
     if (argc < 3) {
         printf("Error: please give a search keyword and at least one file.\n");
@@ -230,8 +304,15 @@ int main(int argc, char *argv[])
         if (thread_args[i].status == STATUS_PENDING) {
             analyze_file(&thread_args[i]);
         }
-        printf("[Thread %d] %s: %d lines, status %d %s\n", thread_args[i].thread_number, thread_args[i].filename,
-               thread_args[i].total_lines, thread_args[i].status, thread_args[i].error_message);
+        printf("[Thread %d] %s: %d lines, %d occurrences, %d matching lines, status %d %s\n",
+               thread_args[i].thread_number, thread_args[i].filename, thread_args[i].total_lines,
+               thread_args[i].occurrences, thread_args[i].matching_lines, thread_args[i].status,
+               thread_args[i].error_message);
+        for (j = 0; j < thread_args[i].matching_lines; j++) {
+            printf(" %d", thread_args[i].line_numbers[j]);
+        }
+        printf("\n");
+        free(thread_args[i].line_numbers);
     }
 
     free(thread_args);
