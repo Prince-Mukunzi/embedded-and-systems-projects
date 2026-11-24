@@ -3,12 +3,17 @@
 #include <string.h>
 #include <ctype.h>
 #include <limits.h>
+#include <math.h>
 
 #define DATA_FILE "transactions.txt"
 #define PRODUCT_LENGTH 50
 #define DATE_LENGTH 11
 #define INPUT_LENGTH 100
 #define INITIAL_CAPACITY 4
+#define MAX_QUANTITY 1000000
+#define MAX_PRICE 1000000.0f
+#define MIN_YEAR 2000
+#define MAX_YEAR 2100
 
 struct Transaction {
     int id;
@@ -76,6 +81,126 @@ int read_int(const char *prompt, int *value)
     return parse_int(buffer, value);
 }
 
+// Converts text to a decimal number. Returns 1 only if the whole text is a valid number.
+int parse_float(const char *text, float *value)
+{
+    char *end;
+    double number;
+
+    if (text[0] == '\0') {
+        return 0;
+    }
+
+    number = strtod(text, &end);
+    // strtod also accepts words like "nan" and "inf", which are not real prices
+    if (*end != '\0' || !isfinite(number)) {
+        return 0;
+    }
+
+    *value = (float) number;
+    return 1;
+}
+
+// Asks for a decimal number. Returns 1 if the user typed a valid one.
+int read_float(const char *prompt, float *value)
+{
+    char buffer[INPUT_LENGTH];
+
+    read_line(prompt, buffer, INPUT_LENGTH);
+    return parse_float(buffer, value);
+}
+
+// Returns 1 if the text has only spaces or tabs in it
+int is_blank(const char *text)
+{
+    int i;
+
+    for (i = 0; text[i] != '\0'; i++) {
+        if (!isspace((unsigned char) text[i])) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+// Checks that text is not empty, fits in the field and has no '|' (the save file separator)
+int is_valid_text(const char *text, int size)
+{
+    if (is_blank(text)) {
+        printf("Error: this field cannot be empty.\n");
+        return 0;
+    }
+    if ((int) strlen(text) >= size) {
+        printf("Error: the text is too long (maximum %d characters).\n", size - 1);
+        return 0;
+    }
+    if (strchr(text, '|') != NULL) {
+        printf("Error: the '|' character is not allowed.\n");
+        return 0;
+    }
+    return 1;
+}
+
+// Asks for a text field and copies it into destination only if it is valid
+int read_text(const char *prompt, char *destination, int size)
+{
+    char buffer[INPUT_LENGTH];
+
+    read_line(prompt, buffer, INPUT_LENGTH);
+    if (!is_valid_text(buffer, size)) {
+        return 0;
+    }
+
+    strcpy(destination, buffer);
+    return 1;
+}
+
+// Returns 1 for leap years, when February has 29 days
+int is_leap_year(int year)
+{
+    return (year % 4 == 0 && year % 100 != 0) || year % 400 == 0;
+}
+
+// Returns 1 if the text is a real calendar date written as YYYY-MM-DD
+int is_valid_date(const char *date)
+{
+    int days_in_month[12] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+    int year;
+    int month;
+    int day;
+    int i;
+
+    if (strlen(date) != 10 || date[4] != '-' || date[7] != '-') {
+        return 0;
+    }
+    for (i = 0; i < 10; i++) {
+        if (i != 4 && i != 7 && !isdigit((unsigned char) date[i])) {
+            return 0;
+        }
+    }
+
+    sscanf(date, "%d-%d-%d", &year, &month, &day);
+    if (year < MIN_YEAR || year > MAX_YEAR || month < 1 || month > 12) {
+        return 0;
+    }
+    if (month == 2 && is_leap_year(year)) {
+        days_in_month[1] = 29;
+    }
+    return day >= 1 && day <= days_in_month[month - 1];
+}
+
+// Returns 1 if the quantity is a positive whole number within the limit
+int is_valid_quantity(int quantity)
+{
+    return quantity > 0 && quantity <= MAX_QUANTITY;
+}
+
+// Returns 1 if the unit price is above zero and within the limit
+int is_valid_price(float price)
+{
+    return price > 0 && price <= MAX_PRICE;
+}
+
 // Creates an empty list with room for a few transactions. Returns 0 if memory runs out.
 int create_list(struct TransactionList *list)
 {
@@ -97,10 +222,83 @@ void free_list(struct TransactionList *list)
     list->capacity = 0;
 }
 
+// Doubles the capacity of the list when it is full. Returns 0 if memory runs out.
+int grow_list(struct TransactionList *list)
+{
+    struct Transaction *resized;
+    int new_capacity = list->capacity * 2;
+
+    resized = realloc(list->items, new_capacity * sizeof(struct Transaction));
+    // On failure the old list is still valid, so nothing is lost
+    if (resized == NULL) {
+        return 0;
+    }
+
+    list->items = resized;
+    list->capacity = new_capacity;
+    return 1;
+}
+
+// Linear search: returns the position of the transaction with this ID, or -1 if not found
+int find_transaction_index(const struct TransactionList *list, int id)
+{
+    int i;
+
+    for (i = 0; i < list->count; i++) {
+        if (list->items[i].id == id) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+// Menu option 1: asks for the details of a sale and adds it to the list
+void add_transaction(struct TransactionList *list)
+{
+    struct Transaction new_transaction;
+
+    if (!read_int("Transaction ID: ", &new_transaction.id) || new_transaction.id <= 0) {
+        printf("Error: the transaction ID must be a positive whole number.\n");
+        return;
+    }
+    if (find_transaction_index(list, new_transaction.id) != -1) {
+        printf("Error: a transaction with ID %d already exists.\n", new_transaction.id);
+        return;
+    }
+    if (!read_text("Product name: ", new_transaction.product, PRODUCT_LENGTH)) {
+        return;
+    }
+    if (!read_int("Quantity sold: ", &new_transaction.quantity) || !is_valid_quantity(new_transaction.quantity)) {
+        printf("Error: the quantity must be a whole number from 1 to %d.\n", MAX_QUANTITY);
+        return;
+    }
+    if (!read_float("Unit price: ", &new_transaction.unit_price) || !is_valid_price(new_transaction.unit_price)) {
+        printf("Error: the unit price must be a number above 0 and up to %.0f.\n", MAX_PRICE);
+        return;
+    }
+    if (!read_text("Transaction date (YYYY-MM-DD): ", new_transaction.date, DATE_LENGTH)
+        || !is_valid_date(new_transaction.date)) {
+        printf("Error: the date must be a real date written as YYYY-MM-DD.\n");
+        return;
+    }
+
+    new_transaction.total = new_transaction.quantity * new_transaction.unit_price;
+
+    if (list->count == list->capacity && !grow_list(list)) {
+        printf("Error: not enough memory to add the transaction.\n");
+        return;
+    }
+
+    list->items[list->count] = new_transaction;
+    list->count++;
+    printf("Transaction %d added. Total amount: %.2f\n", new_transaction.id, new_transaction.total);
+}
+
 // Prints the main menu
 void show_menu(void)
 {
     printf("\n===== SALES TRANSACTION MANAGEMENT SYSTEM =====\n");
+    printf(" 1. Add New Transaction\n");
     printf(" 0. Exit\n");
 }
 
@@ -130,6 +328,9 @@ int main(void)
         }
 
         switch (choice) {
+            case 1:
+                add_transaction(&list);
+                break;
             case 0:
                 running = 0;
                 break;
