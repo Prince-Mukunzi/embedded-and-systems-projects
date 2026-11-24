@@ -344,6 +344,38 @@ void *process_file(void *arg)
     return NULL;
 }
 
+// Prints the summary after all threads have finished. Returns how many files failed.
+int display_results(const struct ThreadArgs *thread_args, int file_count)
+{
+    int failed_count = 0;
+    int report_count = 0;
+    int i;
+
+    printf("\n===== PROCESSING SUMMARY =====\n\n");
+    for (i = 0; i < file_count; i++) {
+        if (thread_args[i].status == STATUS_COMPLETED) {
+            printf("%s: Completed (%d occurrence(s) on %d line(s), report: %s)\n", thread_args[i].filename,
+                   thread_args[i].occurrences, thread_args[i].matching_lines, thread_args[i].report_name);
+        } else {
+            printf("%s: Failed (%s)\n", thread_args[i].filename, thread_args[i].error_message);
+            failed_count++;
+        }
+        if (thread_args[i].report_written) {
+            report_count++;
+        }
+    }
+
+    printf("\n");
+    if (failed_count == 0) {
+        printf("All processing tasks completed.\n");
+        printf("Reports generated successfully.\n");
+    } else {
+        printf("All processing tasks finished. %d of %d file(s) failed.\n", failed_count, file_count);
+        printf("%d of %d report(s) generated.\n", report_count, file_count);
+    }
+    return failed_count;
+}
+
 int main(int argc, char *argv[])
 {
     const char *keyword;
@@ -351,6 +383,7 @@ int main(int argc, char *argv[])
     struct ThreadArgs *thread_args;
     pthread_t *threads;
     int *thread_created;
+    int failed_count;
     int i;
 
     if (argc < 3) {
@@ -406,11 +439,17 @@ int main(int argc, char *argv[])
         }
     }
 
+    failed_count = display_results(thread_args, file_count);
+
     for (i = 0; i < file_count; i++) {
         free(thread_args[i].line_numbers);
     }
     free(thread_args);
     free(threads);
     free(thread_created);
+
+    if (failed_count > 0) {
+        return 1;
+    }
     return 0;
 }
